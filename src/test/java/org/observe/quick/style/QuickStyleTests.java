@@ -1,17 +1,24 @@
 package org.observe.quick.style;
 
+import org.junit.Before;
 import org.junit.Test;
 import org.observe.ObservableValue;
-import org.observe.expresso.AbstractExpressoTest;
 import org.observe.expresso.ExpressoInterpretationException;
 import org.observe.expresso.ModelInstantiationException;
 import org.observe.expresso.qonfig.ExpressoHeadSection;
+import org.observe.expresso.tests.AbstractExpressoTest;
 
 /** Tests the default implementation of the Quick-Style toolkit */
 public class QuickStyleTests extends AbstractExpressoTest<ExpressoHeadSection> {
 	@Override
 	protected String getTestAppFile() {
 		return "quick-style-tests-app.qml";
+	}
+
+	@Before
+	@Override
+	public void compileTesting() {
+		super.compileTesting();
 	}
 
 	/**
