@@ -590,7 +590,7 @@ public abstract class QuickOsgiComponent {
 			}
 			return (MV) serviceCopy.flow().unmodifiable(false).collectPassive();
 		} else {
-			throw new ExpressoInterpretationException("Cannot satisfy Sage service value of model type " + type.getModelType(),
+			throw new ExpressoInterpretationException("Cannot satisfy service value of model type " + type.getModelType(),
 				valueEl.reporting().getFileLocation());
 		}
 	}

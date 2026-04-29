@@ -26,6 +26,7 @@ import org.observe.expresso.qonfig.ExElement;
 import org.observe.expresso.qonfig.ExNamed;
 import org.observe.expresso.qonfig.ExpressoQIS;
 import org.observe.expresso.qonfig.ModelValueElement;
+import org.observe.expresso.qonfig.ObservableModelElement;
 import org.observe.quick.style.QuickInterpretedStyle.QuickStyleAttributeInstantiator;
 import org.observe.quick.style.QuickStyled.QuickInstanceStyle;
 import org.qommons.QommonsUtils;
@@ -233,6 +234,15 @@ public class TestInterpretation implements QonfigInterpretation {
 			@Override
 			public Def getDefinition() {
 				return (Def) super.getDefinition();
+			}
+
+			@Override
+			public ObservableModelElement.Interpreted<?> getInterpretedModel() {
+				return null;
+			}
+
+			@Override
+			public void setInterpretedModel(ObservableModelElement.Interpreted<?> model) {
 			}
 
 			@Override
@@ -562,6 +572,15 @@ public class TestInterpretation implements QonfigInterpretation {
 			@Override
 			public Def<T> getDefinition() {
 				return (Def<T>) super.getDefinition();
+			}
+
+			@Override
+			public ObservableModelElement.Interpreted<?> getInterpretedModel() {
+				return null;
+			}
+
+			@Override
+			public void setInterpretedModel(ObservableModelElement.Interpreted<?> model) {
 			}
 
 			@Override
