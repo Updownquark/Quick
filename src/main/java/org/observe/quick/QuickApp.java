@@ -118,7 +118,7 @@ public class QuickApp extends QonfigApp {
 		List<SpecialSessionImplementation<?>> sessionTypes,
 		List<QonfigInterpretation> interpretations, List<QuickInterpretation> quickInterpretations, List<String> commandLineArgs,
 		Appendable printDocument) {
-		super(document, appFile, toolkits, sessionTypes, interpretations);
+		super(document, document.getLocation(), appFile, toolkits, sessionTypes, interpretations);
 		theQuickInterpretations = quickInterpretations;
 		theCommandLineArgs = commandLineArgs;
 		this.printDocument = printDocument;
