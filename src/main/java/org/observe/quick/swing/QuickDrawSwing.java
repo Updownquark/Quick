@@ -1369,8 +1369,7 @@ public class QuickDrawSwing implements QuickInterpretation {
 		 * @param screen The screen bounds
 		 * @param rotateFirst Whether the rotation (if any) should be done before or after sizing
 		 */
-		public boolean updateBounds(QuickSize width, QuickSize height, double rotation, Rectangle screen, boolean rotateFirst,
-			boolean heightIsTopDown) {
+		public boolean updateBounds(QuickSize width, QuickSize height, double rotation, Rectangle screen, boolean heightIsTopDown) {
 			theRotation = theRotationInverse = null;
 
 			Positionable hPos = theShape.getAddOn(Positionable.Horizontal.class);
@@ -1379,75 +1378,6 @@ public class QuickDrawSwing implements QuickInterpretation {
 			// if (rotateFirst)
 			// System.out.println(width + "x" + height + " " + hPos.getLeading().get() + ", " + vPos.getCenter().get());
 			Point anchor = new Point();
-			if (rotateFirst && rotation != 0) {
-				theBounds.x = theBounds.y = 0;
-				Dimension sourceSize = new Dimension();
-				if (width.percent != 0.0f) {
-					if (!evaluateDimension(DO_NOTHING, w -> sourceSize.width = w, DO_NOTHING, hPos, width, screen.x, screen.width, "width"))
-						return false;
-				} else
-					sourceSize.width = width.pixels;
-				if (height.percent != 0.0f) {
-					if (!evaluateDimension(DO_NOTHING, h -> sourceSize.height = h, DO_NOTHING, vPos, height, screen.y, screen.height,
-						"height"))
-						return false;
-				} else
-					sourceSize.height = height.pixels;
-
-				int degrees = (int) (rotation / Math.PI * 180);
-				boolean flipDims = Math.abs(degrees + 90) % 180 > 45;
-				if (flipDims) {
-					theBounds.width = sourceSize.height;
-					theBounds.height = sourceSize.width;
-				} else {
-					theBounds.width = sourceSize.width;
-					theBounds.height = sourceSize.height;
-				}
-				if (hPos.getLeading().get() != null)
-					anchor.x = 0;
-				else if (hPos.getTrailing().get() != null)
-					anchor.x = sourceSize.width;
-				else if (hPos.getCenter().get() != null)
-					anchor.x = sourceSize.width / 2;
-				else
-					anchor.x = 0;
-				if (vPos.getLeading().get() != null)
-					anchor.y = 0;
-				else if (vPos.getTrailing().get() != null)
-					anchor.y = sourceSize.height;
-				else if (vPos.getCenter().get() != null)
-					anchor.y = sourceSize.height / 2;
-				else
-					anchor.y = 0;
-
-				theRotation = AffineTransform.getRotateInstance(rotation, sourceSize.width / 2.0, sourceSize.height / 2.0);
-
-				// Rotate the bounds
-				Rectangle rotatedBounds = new Rectangle();
-				Point2D pt = new Point2D.Double(theBounds.getMinX(), theBounds.getMinY());
-				theRotation.transform(pt, pt);
-				rotatedBounds.setFrame(pt.getX(), pt.getY(), 0, 0);
-
-				pt.setLocation(theBounds.getMinX(), theBounds.getMaxY());
-				theRotation.transform(pt, pt);
-				rotatedBounds.add(pt);
-
-				pt.setLocation(theBounds.getMaxX(), theBounds.getMinY());
-				theRotation.transform(pt, pt);
-				rotatedBounds.add(pt);
-
-				pt.setLocation(theBounds.getMaxX(), theBounds.getMaxY());
-				theRotation.transform(pt, pt);
-				rotatedBounds.add(pt);
-
-				width = QuickSize.ofPixels((int) Math.round(rotatedBounds.getWidth()));
-				height = QuickSize.ofPixels((int) Math.round(rotatedBounds.getHeight()));
-
-				// anchor.x = width.pixels / 2;
-				// anchor.y = height.pixels / 2;
-				// anchor.x = anchor.y = 0;
-			}
-
 			// For post-positioning rotation, the positioning determines the center of the rotation via the anchor.
 			// E.g. If the user specifies the center of the shape, the center should stay where it is regardless of rotation.
 			// Similarly if the specify the upper left corner, we should rotate around that.
@@ -1461,14 +1391,8 @@ public class QuickDrawSwing implements QuickInterpretation {
 			// if (rotateFirst)
 			// System.out.println(rotateFirst + " " + theBounds + " " + anchor);
 			if (rotation != 0) {
-				if (rotateFirst) {
-					AffineTransform tx = AffineTransform.getTranslateInstance(theBounds.x + anchor.x, theBounds.y + anchor.y);
-					tx.concatenate(theRotation);
-					theRotation = tx;
-				} else {
-					theRotation = AffineTransform.getTranslateInstance(theBounds.x, theBounds.y);
-					theRotation.rotate(rotation, anchor.x - theBounds.x, anchor.y - theBounds.y);
-				}
+				theRotation = AffineTransform.getTranslateInstance(theBounds.x, theBounds.y);
+				theRotation.rotate(rotation, anchor.x - theBounds.x, anchor.y - theBounds.y);
 				theBounds.x = theBounds.y = 0;
 			}
 
@@ -1575,8 +1499,7 @@ public class QuickDrawSwing implements QuickInterpretation {
 			if (!isVisible() || theScreen == null)
 				return null;
 
-			if (!theBounds.updateBounds(getShape().getWidth().get(), getShape().getHeight().get(), theRotationValue.get(), theScreen, false,
-				true))
+			if (!theBounds.updateBounds(getShape().getWidth().get(), getShape().getHeight().get(), theRotationValue.get(), theScreen, true))
 				return null;
 			if (theBounds.getRotationInverse() != null) {
 				Point2D.Float transformed = (Point2D.Float) theBounds.getRotationInverse()
@@ -1596,8 +1519,7 @@ public class QuickDrawSwing implements QuickInterpretation {
 				return;
 
 			theScreen = screen;
-			if (!theBounds.updateBounds(getShape().getWidth().get(), getShape().getHeight().get(), theRotationValue.get(), screen, false,
-				true))
+			if (!theBounds.updateBounds(getShape().getWidth().get(), getShape().getHeight().get(), theRotationValue.get(), screen, true))
 				return;
 			if (theBounds.getRotation() != null) {
 				gfx.transform(theBounds.getRotation());
@@ -2002,12 +1924,14 @@ public class QuickDrawSwing implements QuickInterpretation {
 
 		@Override
 		public void draw(Graphics2D gfx, Rectangle screen) {
+			if (!isVisible())
+				return;
 			theParentFont = gfx.getFont();
 			Rectangle bounds = updateBounds(gfx.getFontRenderContext());
 			if (bounds == null)
 				return;
 			double rotation = theRotationValue == null ? 0.0 : theRotationValue.get();
-			if (!theBounds.updateBounds(QuickSize.ofPixels(bounds.width), QuickSize.ofPixels(bounds.height), rotation, screen, true, true))
+			if (!theBounds.updateBounds(QuickSize.ofPixels(bounds.width), QuickSize.ofPixels(bounds.height), rotation, screen, true))
 				return;
 			// System.out.println(theText + " bounds=" + bounds + " screen=" + screen + " rot=" + (rotation / Math.PI * 180) + " tx="
 			// + theBounds.getBounds());
@@ -2081,6 +2005,8 @@ public class QuickDrawSwing implements QuickInterpretation {
 
 		@Override
 		public Point hit(Point containerPoint) {
+			if (!isVisible())
+				return null;
 			Rectangle bounds = updateBounds(theRenderContext);
 			if (bounds == null)
 				return null;

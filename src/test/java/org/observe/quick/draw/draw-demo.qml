@@ -313,6 +313,17 @@
 					 anchor-x="config.rotateAnchorX-config.translateX" anchor-y="config.rotateAnchorY-config.translateY" />
 				<scale x="config.scaleX" y="config.scaleTogether ? config.scaleX : config.scaleY" />
 
+				<shape-collection for-each="{0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200, 1300, 1400, 1500}"
+					active-shape-as="v">
+					<line>
+						<point x="v" y="0" />
+						<point x="v" y="10_000" />
+					</line>
+					<line>
+						<point x="0" y="v" />
+						<point x="10_000" y="v" />
+					</line>
+				</shape-collection>
 				<demo-shape-collection shapes="app.shapes" selected="app.selected" />
 			</shape-view>
 		</canvas>
