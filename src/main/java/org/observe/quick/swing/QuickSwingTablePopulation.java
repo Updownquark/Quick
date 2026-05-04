@@ -115,7 +115,7 @@ class QuickSwingTablePopulation {
 			theColumn = column;
 			theReverse = reverse;
 			QuickSwingTableColumn<R, R2, C> renderer = new QuickSwingTableColumn<>(update, theReverse, quickParent, column, virtual,
-				context, parent, swingRenderers, swingEditors);
+				context, parent, swingRenderers, swingEditors, until);
 			theCRS = renderer.getCRS();
 			Integer width = column.getWidth();
 			if (column.getMinWidth() != null)
@@ -621,7 +621,7 @@ class QuickSwingTablePopulation {
 		QuickSwingTableColumn(TriConsumer<R2, R, QuickWidget> update, Function<R2, R> reverse, QuickWidget quickParent,
 			QuickTableColumn<R, C> column, boolean virtual, QuickSwingColumnSet.TabularContext<R> ctx,
 			Supplier<? extends ComponentEditor<?, ?>> parent, Map<Object, QuickSwingPopulator<QuickWidget>> swingRenderers,
-				Map<Object, QuickSwingPopulator<QuickWidget>> swingEditors) throws ModelInstantiationException {
+			Map<Object, QuickSwingPopulator<QuickWidget>> swingEditors, Observable<?> until) throws ModelInstantiationException {
 			super(update, reverse, quickParent, column.getValue(), column.getRenderers(), ctx, parent, swingRenderers, virtual);
 			theColumn = column;
 
@@ -631,6 +631,10 @@ class QuickSwingTablePopulation {
 					return column.getValue().get();
 				}
 			}, true);
+			column.getName().noInitChanges().takeUntil(until).act(evt -> {
+				if (evt.getNewValue() != null)
+					theCRS.setName(evt.getNewValue());
+			});
 
 			if (theColumn.getEditing() != null) {
 				QuickTableColumn.ColumnEditing<R, C> editing = theColumn.getEditing();
