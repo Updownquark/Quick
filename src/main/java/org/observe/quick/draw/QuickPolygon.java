@@ -81,8 +81,8 @@ public class QuickPolygon<V> extends QuickShape.Abstract implements QuickBordere
 
 	public static class Interpreted<V> extends QuickBorderedShape.Interpreted.Abstract<QuickPolygon<V>> {
 		private InterpretedValueSynth<ObservableCollection<?>, ObservableCollection<V>> theVertices;
-		private InterpretedValueSynth<SettableValue<?>, SettableValue<Integer>> theVertexX;
-		private InterpretedValueSynth<SettableValue<?>, SettableValue<Integer>> theVertexY;
+		private InterpretedValueSynth<SettableValue<?>, SettableValue<Float>> theVertexX;
+		private InterpretedValueSynth<SettableValue<?>, SettableValue<Float>> theVertexY;
 
 		Interpreted(Def definition, ExElement.Interpreted<?> parent) {
 			super(definition, parent);
@@ -97,11 +97,11 @@ public class QuickPolygon<V> extends QuickShape.Abstract implements QuickBordere
 			return theVertices;
 		}
 
-		public InterpretedValueSynth<SettableValue<?>, SettableValue<Integer>> getVertexX() {
+		public InterpretedValueSynth<SettableValue<?>, SettableValue<Float>> getVertexX() {
 			return theVertexX;
 		}
 
-		public InterpretedValueSynth<SettableValue<?>, SettableValue<Integer>> getVertexY() {
+		public InterpretedValueSynth<SettableValue<?>, SettableValue<Float>> getVertexY() {
 			return theVertexY;
 		}
 
@@ -116,8 +116,8 @@ public class QuickPolygon<V> extends QuickShape.Abstract implements QuickBordere
 			theVertices = null;
 			super.doUpdate();
 			getVertexType();
-			theVertexX = interpret(getDefinition().getVertexX(), ModelTypes.Value.INT);
-			theVertexY = interpret(getDefinition().getVertexY(), ModelTypes.Value.INT);
+			theVertexX = interpret(getDefinition().getVertexX(), ModelTypes.Value.FLOAT);
+			theVertexY = interpret(getDefinition().getVertexY(), ModelTypes.Value.FLOAT);
 		}
 
 		@Override
@@ -128,13 +128,13 @@ public class QuickPolygon<V> extends QuickShape.Abstract implements QuickBordere
 
 	private ModelValueInstantiator<ObservableCollection<V>> theVerticesInstantiator;
 	private ModelComponentId theActiveVertexAs;
-	private ModelValueInstantiator<SettableValue<Integer>> theVertexXInstantiator;
-	private ModelValueInstantiator<SettableValue<Integer>> theVertexYInstantiator;
+	private ModelValueInstantiator<SettableValue<Float>> theVertexXInstantiator;
+	private ModelValueInstantiator<SettableValue<Float>> theVertexYInstantiator;
 
 	private SettableValue<ObservableCollection<V>> theVertices;
 	private SettableValue<V> theActiveVertex;
-	private SettableValue<SettableValue<Integer>> theVertexX;
-	private SettableValue<SettableValue<Integer>> theVertexY;
+	private SettableValue<SettableValue<Float>> theVertexX;
+	private SettableValue<SettableValue<Float>> theVertexY;
 
 	QuickPolygon(Object id) {
 		super(id);
@@ -153,11 +153,11 @@ public class QuickPolygon<V> extends QuickShape.Abstract implements QuickBordere
 		return theActiveVertex;
 	}
 
-	public ObservableValue<Integer> getVertexX() {
+	public ObservableValue<Float> getVertexX() {
 		return ObservableValue.flatten(theVertexX);
 	}
 
-	public ObservableValue<Integer> getVertexY() {
+	public ObservableValue<Float> getVertexY() {
 		return ObservableValue.flatten(theVertexY);
 	}
 

@@ -1,7 +1,10 @@
 package org.observe.quick.draw;
 
+import java.util.Collections;
+import java.util.List;
+
+import org.observe.Observable;
 import org.observe.SettableValue;
-import org.observe.collect.ObservableCollection;
 import org.observe.expresso.ExpressoInterpretationException;
 import org.observe.expresso.ModelInstantiationException;
 import org.observe.expresso.ModelTypes;
@@ -9,12 +12,16 @@ import org.observe.expresso.ObservableModelSet.InterpretedValueSynth;
 import org.observe.expresso.ObservableModelSet.ModelSetInstance;
 import org.observe.expresso.ObservableModelSet.ModelValueInstantiator;
 import org.observe.expresso.qonfig.ExElement;
+import org.observe.util.TypeTokens;
+import org.qommons.Causable;
 import org.qommons.config.QonfigElementOrAddOn;
 
 import com.google.common.reflect.TypeToken;
 
-public class QuickShapeCollection<T> extends AbstractShapeCollection<T> {
-	public static class Def extends AbstractShapeCollection.Def<QuickShapeCollection<?>> {
+public class LightWeightShapeCollection<T> extends AbstractShapeCollection<T> {
+	public static final String LIGHT_WEIGHT_SHAPE_COLLECTION = "light-weight-shape-collection";
+
+	public static class Def extends AbstractShapeCollection.Def<LightWeightShapeCollection<?>> {
 		public Def(ExElement.Def<?> parent, QonfigElementOrAddOn qonfigType) {
 			super(parent, qonfigType);
 		}
@@ -25,8 +32,8 @@ public class QuickShapeCollection<T> extends AbstractShapeCollection<T> {
 		}
 	}
 
-	public static class Interpreted<T> extends AbstractShapeCollection.Interpreted<T, QuickShapeCollection<T>> {
-		private InterpretedValueSynth<ObservableCollection<?>, ObservableCollection<T>> theValues;
+	public static class Interpreted<T> extends AbstractShapeCollection.Interpreted<T, LightWeightShapeCollection<T>> {
+		private InterpretedValueSynth<SettableValue<?>, SettableValue<List<T>>> theValues;
 
 		Interpreted(Def definition, ExElement.Interpreted<?> parent) {
 			super(definition, parent);
@@ -40,12 +47,13 @@ public class QuickShapeCollection<T> extends AbstractShapeCollection<T> {
 		@Override
 		public TypeToken<T> getShapeType() throws ExpressoInterpretationException {
 			if (theValues == null)
-				theValues = interpret(getDefinition().getValues(), ModelTypes.Collection.anyAsV());
-			return (TypeToken<T>) theValues.getType().getType(0);
+				theValues = interpret(getDefinition().getValues(),
+					ModelTypes.Value.forType(TypeTokens.get().keyFor(List.class).wildCard()));
+			return (TypeToken<T>) theValues.getType().getType(0).resolveType(List.class.getTypeParameters()[0]);
 		}
 
 		@Override
-		public InterpretedValueSynth<ObservableCollection<?>, ObservableCollection<T>> getValues() {
+		public InterpretedValueSynth<SettableValue<?>, SettableValue<List<T>>> getValues() {
 			return theValues;
 		}
 
@@ -54,27 +62,32 @@ public class QuickShapeCollection<T> extends AbstractShapeCollection<T> {
 			theValues = null;
 			super.doUpdate();
 			if (theValues == null)
-				theValues = interpret(getDefinition().getValues(), ModelTypes.Collection.anyAsV());
+				theValues = interpret(getDefinition().getValues(),
+					ModelTypes.Value.forType(TypeTokens.get().keyFor(List.class).wildCard()));
 		}
 
 		@Override
-		public QuickShapeCollection<T> create() {
-			return new QuickShapeCollection<>(getIdentity());
+		public LightWeightShapeCollection<T> create() {
+			return new LightWeightShapeCollection<>(getIdentity());
 		}
 	}
 
-	private ModelValueInstantiator<ObservableCollection<T>> theValuesInstantiator;
+	private ModelValueInstantiator<SettableValue<List<T>>> theValuesInstantiator;
 
-	private SettableValue<ObservableCollection<T>> theValues;
+	private SettableValue<List<T>> theValues;
 
-	QuickShapeCollection(Object id) {
+	LightWeightShapeCollection(Object id) {
 		super(id);
-		theValues = SettableValue.create();
 	}
 
 	@Override
-	public ObservableCollection<T> getValues() {
-		return ObservableCollection.flattenValue(theValues);
+	public List<T> getValues() {
+		List<T> wrapped = theValues.get();
+		return wrapped == null ? Collections.emptyList() : Collections.unmodifiableList(wrapped);
+	}
+
+	public Observable<? extends Causable> getValueChanges() {
+		return theValues.noInitChanges();
 	}
 
 	@Override
@@ -97,16 +110,14 @@ public class QuickShapeCollection<T> extends AbstractShapeCollection<T> {
 	protected ModelSetInstance doInstantiate(ModelSetInstance myModels) throws ModelInstantiationException {
 		myModels = super.doInstantiate(myModels);
 
-		theValues.set(theValuesInstantiator.get(myModels));
+		theValues = theValuesInstantiator.get(myModels);
 
 		return myModels;
 	}
 
 	@Override
-	public QuickShapeCollection<T> copy(ExElement parent) {
-		QuickShapeCollection<T> copy = (QuickShapeCollection<T>) super.copy(parent);
-
-		copy.theValues = SettableValue.create();
+	public LightWeightShapeCollection<T> copy(ExElement parent) {
+		LightWeightShapeCollection<T> copy = (LightWeightShapeCollection<T>) super.copy(parent);
 
 		return copy;
 	}

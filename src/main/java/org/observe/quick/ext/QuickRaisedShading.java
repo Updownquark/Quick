@@ -110,8 +110,8 @@ public class QuickRaisedShading implements QuickShading {
 			if (!isHorizontal && !isVertical)
 				return;
 			QuickSize radius = getOrDefault(theCornerRadius, DEFAULT_CORNER_RADIUS);
-			int wRad = radius.evaluate(size.width);
-			int hRad = radius.evaluate(size.height);
+			int wRad = Math.round(radius.evaluateInt(size.width));
+			int hRad = Math.round(radius.evaluateInt(size.height));
 			double opacity = theOpacity == null ? 1.0 : theOpacity.get();
 			Color bg = background;
 			if (opacity > 0 && bg.getAlpha() > 0) {

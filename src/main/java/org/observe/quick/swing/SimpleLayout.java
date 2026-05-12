@@ -126,74 +126,74 @@ public class SimpleLayout implements LayoutManager2 {
 				case "min-w":
 					if (minWidth != null)
 						throw new IllegalArgumentException("min-width specified twice as " + minWidth + " and " + m.group("value"));
-					else if (width != null && width.percent == 0.0f)
+					else if (width != null && width.getPercent() == 0.0f)
 						throw new IllegalArgumentException("min-width specified, but width is absolute");
 					QuickSize size = QuickSize.parsePosition(m.group("value"));
-					if (size.percent != 0.0f)
+					if (size.getPercent() != 0.0f)
 						throw new IllegalArgumentException("min-width must be specified in pixels");
-					minWidth = size.pixels;
+					minWidth = size.getIPixels();
 					break;
 				case "pref-width":
 				case "pref-w":
 					if (prefWidth != null)
 						throw new IllegalArgumentException("pref-width specified twice as " + prefWidth + " and " + m.group("value"));
-					else if (width != null && width.percent == 0.0f)
+					else if (width != null && width.getPercent() == 0.0f)
 						throw new IllegalArgumentException("pref-width specified, but width is absolute");
 					size = QuickSize.parsePosition(m.group("value"));
-					if (size.percent != 0.0f)
+					if (size.getPercent() != 0.0f)
 						throw new IllegalArgumentException("pref-width must be specified in pixels");
-					prefWidth = size.pixels;
+					prefWidth = size.getIPixels();
 					break;
 				case "max-width":
 				case "max-w":
 					if (maxWidth != null)
 						throw new IllegalArgumentException("max-width specified twice as " + maxWidth + " and " + m.group("value"));
-					else if (width != null && width.percent == 0.0f)
+					else if (width != null && width.getPercent() == 0.0f)
 						throw new IllegalArgumentException("max-width specified, but width is absolute");
 					size = QuickSize.parsePosition(m.group("value"));
-					if (size.percent != 0.0f)
+					if (size.getPercent() != 0.0f)
 						throw new IllegalArgumentException("max-width must be specified in pixels");
-					maxWidth = size.pixels;
+					maxWidth = size.getIPixels();
 					break;
 				case "min-height":
 				case "min-h":
 					if (minHeight != null)
 						throw new IllegalArgumentException("min-height specified twice as " + minHeight + " and " + m.group("value"));
-					else if (height != null && height.percent == 0.0f)
+					else if (height != null && height.getPercent() == 0.0f)
 						throw new IllegalArgumentException("min-height specified, but height is absolute");
 					size = QuickSize.parsePosition(m.group("value"));
-					if (size.percent != 0.0f)
+					if (size.getPercent() != 0.0f)
 						throw new IllegalArgumentException("min-height must be specified in pixels");
-					minHeight = size.pixels;
+					minHeight = size.getIPixels();
 					break;
 				case "pref-height":
 				case "pref-h":
 					if (prefHeight != null)
 						throw new IllegalArgumentException("pref-height specified twice as " + prefHeight + " and " + m.group("value"));
-					else if (height != null && height.percent == 0.0f)
+					else if (height != null && height.getPercent() == 0.0f)
 						throw new IllegalArgumentException("pref-height specified, but height is absolute");
 					size = QuickSize.parsePosition(m.group("value"));
-					if (size.percent != 0.0f)
+					if (size.getPercent() != 0.0f)
 						throw new IllegalArgumentException("pref-height must be specified in pixels");
-					prefHeight = size.pixels;
+					prefHeight = size.getIPixels();
 					break;
 				case "max-height":
 				case "max-h":
 					if (maxHeight != null)
 						throw new IllegalArgumentException("max-height specified twice as " + maxHeight + " and " + m.group("value"));
-					else if (height != null && height.percent == 0.0f)
+					else if (height != null && height.getPercent() == 0.0f)
 						throw new IllegalArgumentException("max-height specified, but height is absolute");
 					size = QuickSize.parsePosition(m.group("value"));
-					if (size.percent != 0.0f)
+					if (size.getPercent() != 0.0f)
 						throw new IllegalArgumentException("max-height must be specified in pixels");
-					maxHeight = size.pixels;
+					maxHeight = size.getIPixels();
 					break;
 				case "width":
 				case "w":
 					if (width != null)
 						throw new IllegalArgumentException("width specified twice as " + width + " and " + m.group("value"));
 					width = QuickSize.parsePosition(m.group("value"));
-					if (width.percent != 0.0f) {
+					if (width.getPercent() != 0.0f) {
 						if (minWidth != null)
 							throw new IllegalArgumentException("min-width specified, but width is absolute");
 						else if (prefWidth != null)
@@ -207,7 +207,7 @@ public class SimpleLayout implements LayoutManager2 {
 					if (height != null)
 						throw new IllegalArgumentException("height specified twice as " + width + " and " + m.group("value"));
 					height = QuickSize.parsePosition(m.group("value"));
-					if (height.percent != 0.0f) {
+					if (height.getPercent() != 0.0f) {
 						if (minHeight != null)
 							throw new IllegalArgumentException("min-height specified, but width is absolute");
 						else if (prefHeight != null)
@@ -449,32 +449,32 @@ public class SimpleLayout implements LayoutManager2 {
 		if (constraints == null)
 			return unconstrained.apply(c, vertical, type);
 		QuickSize trail = constraints.getPos(1);
-		if (trail != null && trail.percent == 0.0f)
-			return trail.pixels;
+		if (trail != null && trail.getPercent() == 0.0f)
+			return trail.getIPixels();
 		QuickSize lead = constraints.getPos(-1);
-		if (lead != null && lead.percent == 100.0f)
-			return lead.pixels;
+		if (lead != null && lead.getPercent() == 100.0f)
+			return lead.getIPixels();
 		QuickSize size = constraints.getSize();
 		Integer absSize = null;
 		float relSize = 0.0f;
 		if (size != null) {
-			absSize = size.pixels;
-			relSize = size.percent;
+			absSize = size.getIPixels();
+			relSize = size.getPercent();
 		} else {
 			absSize = constraints.getSize(type);
 			if (absSize == null)
 				absSize = unconstrained.apply(c, vertical, type);
 		}
 		if (lead != null) {
-			absSize += Math.abs(lead.pixels);
-			relSize += lead.percent;
+			absSize += Math.abs(lead.getIPixels());
+			relSize += lead.getPercent();
 		}
 		if (trail != null) {
-			absSize += Math.abs(trail.pixels);
-			relSize += 100f - trail.percent;
+			absSize += Math.abs(trail.getIPixels());
+			relSize += 100f - trail.getPercent();
 		}
 		if (absSize.intValue() > 0 && relSize != 0)
-			return new QuickSize(relSize, absSize).resolveExponential();
+			return QuickSize.of(relSize, absSize).resolveIntExponential();
 		else if (type > 0)
 			return Integer.MAX_VALUE;
 		else if (absSize.intValue() != 0)
@@ -538,27 +538,27 @@ public class SimpleLayout implements LayoutManager2 {
 		QuickSize trail = constraints.getPos(1);
 		QuickSize size = constraints.getSize();
 		if (size != null) {
-			int absSize = size.evaluate(parentSize);
+			int absSize = size.evaluateInt(parentSize);
 			setSize(childBounds, vertical, absSize);
 			if (lead != null)
-				setPos(childBounds, vertical, offset + lead.evaluate(parentSize));
+				setPos(childBounds, vertical, offset + lead.evaluateInt(parentSize));
 			else if (trail != null) {
-				int absTrail = trail.evaluate(parentSize);
+				int absTrail = trail.evaluateInt(parentSize);
 				setPos(childBounds, vertical, offset + absTrail - absSize);
 			} else if (center != null) {
-				int absCenter = center.evaluate(parentSize);
+				int absCenter = center.evaluateInt(parentSize);
 				setPos(childBounds, vertical, offset + absCenter - (absSize + 1) / 2);
 			} else
 				setPos(childBounds, vertical, offset);
 		} else {
 			if (lead != null) {
-				int absLead = lead.evaluate(parentSize);
+				int absLead = lead.evaluateInt(parentSize);
 				setPos(childBounds, vertical, offset + absLead);
 				if (trail != null) {
-					int absTrail = trail.evaluate(parentSize);
+					int absTrail = trail.evaluateInt(parentSize);
 					setSize(childBounds, vertical, Math.max(0, absTrail - absLead));
 				} else if (center != null) {
-					int absCenter = center.evaluate(parentSize);
+					int absCenter = center.evaluateInt(parentSize);
 					setSize(childBounds, vertical, absCenter < absLead ? 0 : (absCenter - absLead) * 2);
 				} else {
 					Integer pref = constraints.getSize(0);
@@ -567,9 +567,9 @@ public class SimpleLayout implements LayoutManager2 {
 					setSize(childBounds, vertical, Math.min(pref, parentSize - absLead));
 				}
 			} else if (trail != null) {
-				int absTrail = trail.evaluate(parentSize);
+				int absTrail = trail.evaluateInt(parentSize);
 				if (center != null) {
-					int absCenter = center.evaluate(parentSize);
+					int absCenter = center.evaluateInt(parentSize);
 					if (absCenter < absTrail) {
 						setPos(childBounds, vertical, offset + (absCenter + absCenter - absTrail));
 						setSize(childBounds, vertical, offset + (absTrail - absCenter) * 2);
@@ -585,7 +585,7 @@ public class SimpleLayout implements LayoutManager2 {
 					setSize(childBounds, vertical, pref);
 				}
 			} else if (center != null) {
-				int absCenter = center.evaluate(parentSize);
+				int absCenter = center.evaluateInt(parentSize);
 				Integer pref = constraints.getSize(0);
 				if (pref == null)
 					pref = getComponentSize(c, vertical, 0);

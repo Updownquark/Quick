@@ -2,9 +2,11 @@ package org.observe.quick;
 
 import org.observe.SettableValue;
 import org.observe.expresso.ModelInstantiationException;
+import org.observe.expresso.ModelType.ModelInstanceType;
 import org.observe.expresso.ModelTypes;
 import org.observe.expresso.ObservableModelSet.ModelComponentId;
 import org.observe.expresso.ObservableModelSet.ModelSetInstance;
+import org.observe.expresso.qonfig.ExAddOn;
 import org.observe.expresso.qonfig.ExElement;
 import org.observe.expresso.qonfig.ExElementTraceable;
 import org.observe.expresso.qonfig.ExFlexibleElementModelAddOn;
@@ -14,6 +16,8 @@ import org.observe.expresso.qonfig.ExpressoQIS;
 import org.observe.expresso.qonfig.QonfigAttributeGetter;
 import org.qommons.config.QonfigElementOrAddOn;
 import org.qommons.config.QonfigInterpretationException;
+
+import com.google.common.reflect.TypeToken;
 
 /** Listens for mouse events on a widget */
 public abstract class QuickMouseListener extends QuickEventListener.Abstract {
@@ -64,6 +68,16 @@ public abstract class QuickMouseListener extends QuickEventListener.Abstract {
 			ExWithElementModel.Def elModels = getAddOn(ExWithElementModel.Def.class);
 			theEventXValue = elModels.getElementValueModelId("x");
 			theEventYValue = elModels.getElementValueModelId("y");
+			// The following is something of a hack
+			// I want to re-use these types for Quick-Draw, but the coordinates there need to be floating-point-typed
+			MouseCoordType<?, ?> coordType = getAddOn(MouseCoordType.class);
+			ModelInstanceType<?, ?> coordValueType;
+			if (coordType != null)
+				coordValueType = ModelTypes.Value.forType(coordType.getCoordinateType());
+			else
+				coordValueType = ModelTypes.Value.INT;
+			elModels.satisfyElementValueType(theEventXValue, coordValueType);
+			elModels.satisfyElementValueType(theEventYValue, coordValueType);
 		}
 
 		@Override
@@ -92,8 +106,8 @@ public abstract class QuickMouseListener extends QuickEventListener.Abstract {
 
 	private ModelComponentId theEventXValue;
 	private ModelComponentId theEventYValue;
-	private SettableValue<Integer> theEventX;
-	private SettableValue<Integer> theEventY;
+	private SettableValue<? extends Number> theEventX;
+	private SettableValue<? extends Number> theEventY;
 
 	/** @param id The element ID of this listener */
 	protected QuickMouseListener(Object id) {
@@ -103,12 +117,12 @@ public abstract class QuickMouseListener extends QuickEventListener.Abstract {
 	}
 
 	/** @return The X-coordinate of the screen location relative to is listener's owning widget where the event occurred */
-	public SettableValue<Integer> getEventX() {
+	public SettableValue<? extends Number> getEventX() {
 		return theEventX;
 	}
 
 	/** @return The Y-coordinate of the screen location relative to is listener's owning widget where the event occurred */
-	public SettableValue<Integer> getEventY() {
+	public SettableValue<? extends Number> getEventY() {
 		return theEventY;
 	}
 
@@ -163,6 +177,10 @@ public abstract class QuickMouseListener extends QuickEventListener.Abstract {
 		private MouseMoveEventType(String elementName) {
 			this.elementName = elementName;
 		}
+	}
+
+	public interface MouseCoordType<E extends QuickMouseListener, AO extends ExAddOn<? super E>> extends ExAddOn.Def<E, AO> {
+		TypeToken<? extends Number> getCoordinateType();
 	}
 
 	/** Listens for events of the mouse moving over a widget */

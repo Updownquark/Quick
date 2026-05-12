@@ -2,22 +2,17 @@ package org.observe.quick;
 
 import java.util.Collections;
 import java.util.Set;
-import java.util.function.Function;
 
 import org.observe.Observable;
 import org.observe.ObservableValueEvent;
 import org.observe.SettableValue;
 import org.observe.expresso.ExpressoInterpretationException;
-import org.observe.expresso.ExpressoParseException;
 import org.observe.expresso.ModelInstantiationException;
 import org.observe.expresso.ModelType.ModelInstanceType;
 import org.observe.expresso.ModelTypes;
-import org.observe.expresso.ObservableExpression;
-import org.observe.expresso.ObservableModelSet.CompiledModelValue;
 import org.observe.expresso.ObservableModelSet.InterpretedValueSynth;
 import org.observe.expresso.ObservableModelSet.ModelSetInstance;
 import org.observe.expresso.ObservableModelSet.ModelValueInstantiator;
-import org.observe.expresso.TypeConversionException;
 import org.observe.expresso.qonfig.CompiledExpression;
 import org.observe.expresso.qonfig.ExAddOn;
 import org.observe.expresso.qonfig.ExElement;
@@ -25,14 +20,9 @@ import org.observe.expresso.qonfig.ExElementTraceable;
 import org.observe.expresso.qonfig.ExModelAugmentation;
 import org.observe.expresso.qonfig.ExpressoQIS;
 import org.observe.expresso.qonfig.QonfigAttributeGetter;
-import org.observe.expresso.qonfig.QonfigExpression;
 import org.qommons.Ternian;
 import org.qommons.config.QonfigAddOn;
-import org.qommons.config.QonfigElement.QonfigValue;
 import org.qommons.config.QonfigInterpretationException;
-import org.qommons.ex.ExceptionHandler;
-import org.qommons.ex.NeverThrown;
-import org.qommons.io.LocatedFilePosition;
 
 /**
  * An add-on typically inherited by children of a &lt;box> managed by a layout indicating that its size along one dimension may be specified
@@ -496,106 +486,5 @@ public abstract class Sizeable extends ExAddOn.Abstract<ExElement> {
 		public Class<Interpreted.Generic> getInterpretationType() {
 			return Interpreted.Generic.class;
 		}
-	}
-
-	/**
-	 * Parses a position in Quick
-	 *
-	 * @param value The expression to parse
-	 * @param session The session in which to parse the expression
-	 * @param position Whether the size to be parsed represents an position or a size
-	 * @return The ModelValueSynth to produce the position value
-	 * @throws QonfigInterpretationException If the position could not be parsed
-	 */
-	public static CompiledModelValue<SettableValue<?>> parseSize(QonfigValue value, ExpressoQIS session, boolean position)
-		throws QonfigInterpretationException {
-		if (value == null)
-			return null;
-		else if (!(value.value instanceof QonfigExpression))
-			throw new IllegalArgumentException("Not an expression");
-		QonfigExpression expression = (QonfigExpression) value.value;
-		boolean pct, xp;
-		int unit;
-		if (expression.text.endsWith("%")) {
-			unit = 1;
-			pct = true;
-			xp = false;
-		} else if (expression.text.endsWith("px") && !Character.isAlphabetic(expression.text.charAt(expression.text.length() - 3))) {
-			unit = 2;
-			pct = false;
-			xp = false;
-		} else if (position && expression.text.endsWith("xp")
-			&& !Character.isAlphabetic(expression.text.charAt(expression.text.length() - 3))) {
-			unit = 2;
-			pct = false;
-			xp = true;
-		} else {
-			pct = xp = false;
-			unit = 0;
-		}
-		ObservableExpression parsed;
-		try {
-			if (unit > 0)
-				parsed = session.getExpressoParser().parse(expression.text.substring(0, expression.text.length() - unit).trim());
-			else
-				parsed = session.getExpressoParser().parse(expression.text);
-		} catch (ExpressoParseException e) {
-			throw new QonfigInterpretationException("Could not parse position expression: " + expression,
-				value.position == null ? null : new LocatedFilePosition(value.fileLocation, value.position.getPosition(e.getErrorOffset())),
-					e.getErrorLength(), e);
-		}
-		boolean fPct = pct, fXp = xp;
-		int fUnit = unit;
-		return CompiledModelValue.of(expression::toString, ModelTypes.Value, env -> {
-			if (fUnit > 0) {
-				InterpretedValueSynth<SettableValue<?>, SettableValue<Double>> num;
-				try {
-					num = parsed.evaluate(ModelTypes.Value.forType(double.class), env, 0, ExceptionHandler.thrower2());
-				} catch (TypeConversionException e) {
-					throw new ExpressoInterpretationException(e.getMessage(),
-						new LocatedFilePosition(value.fileLocation, value.position.getPosition(0)), value.text.length(), e);
-				}
-				Function<Double, QuickSize> map;
-				Function<QuickSize, Double> reverse;
-				if (fPct) {
-					map = v -> v == null ? null : new QuickSize(v.floatValue(), 0);
-					reverse = s -> s == null ? null : Double.valueOf(s.percent);
-				} else if (fXp) {
-					map = v -> v == null ? null : new QuickSize(100.0f, -Math.round(v.floatValue()));
-					reverse = s -> s == null ? null : Double.valueOf(-s.pixels);
-				} else {
-					map = v -> v == null ? null : new QuickSize(0.0f, Math.round(v.floatValue()));
-					reverse = s -> s == null ? null : Double.valueOf(s.pixels);
-				}
-				return num.map(ModelTypes.Value.forType(QuickSize.class), numInst -> ModelValueInstantiator.of(msi -> {
-					SettableValue<Double> numV = numInst.get(msi);
-					return numV.transformReversible(tx -> tx//
-						.map(map)//
-						.replaceSource(reverse, rev -> rev.allowInexactReverse(true)));
-				}));
-			} else {
-				ExceptionHandler.Double<ExpressoInterpretationException, TypeConversionException, NeverThrown, NeverThrown> tce = ExceptionHandler
-					.holder2();
-				InterpretedValueSynth<SettableValue<?>, SettableValue<QuickSize>> positionValue;
-				positionValue = parsed.evaluate(ModelTypes.Value.forType(QuickSize.class), env, 0, tce);
-				if (tce.hasException()) {
-					// If it doesn't parse as a position, try parsing as a number.
-					try {
-						positionValue = parsed.evaluate(ModelTypes.Value.forType(int.class), env, 0, ExceptionHandler.thrower2())//
-							.map(ModelTypes.Value.forType(QuickSize.class), mvi -> mvi
-								.map(v -> v.transformReversible(
-									tx -> tx.map(d -> new QuickSize(0.0f, d)).withReverse(pos -> pos.pixels))));
-					} catch (TypeConversionException e2) {
-						if (tce.get1() != null)
-							throw new ExpressoInterpretationException(e2.getMessage(),
-								new LocatedFilePosition(value.fileLocation, tce.get1().getPosition()), 0, tce.get1());
-						else
-							throw new ExpressoInterpretationException(e2.getMessage(),
-								new LocatedFilePosition(value.fileLocation, env.reporting().getPosition()), 0, tce.get2());
-					}
-				}
-				return positionValue;
-			}
-		});
 	}
 }

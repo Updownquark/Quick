@@ -62,8 +62,8 @@ public class Rotate extends ExElement.Abstract implements TransformOp {
 	}
 
 	public static class Interpreted extends ExElement.Interpreted.Abstract<Rotate> implements TransformOp.Interpreted<Rotate> {
-		private InterpretedValueSynth<SettableValue<?>, SettableValue<Integer>> theAnchorX;
-		private InterpretedValueSynth<SettableValue<?>, SettableValue<Integer>> theAnchorY;
+		private InterpretedValueSynth<SettableValue<?>, SettableValue<Double>> theAnchorX;
+		private InterpretedValueSynth<SettableValue<?>, SettableValue<Double>> theAnchorY;
 		private InterpretedValueSynth<SettableValue<?>, SettableValue<Double>> theRadians;
 
 		Interpreted(Def definition, ExElement.Interpreted<?> parent) {
@@ -75,11 +75,11 @@ public class Rotate extends ExElement.Abstract implements TransformOp {
 			return (Def) super.getDefinition();
 		}
 
-		public InterpretedValueSynth<SettableValue<?>, SettableValue<Integer>> getAnchorX() {
+		public InterpretedValueSynth<SettableValue<?>, SettableValue<Double>> getAnchorX() {
 			return theAnchorX;
 		}
 
-		public InterpretedValueSynth<SettableValue<?>, SettableValue<Integer>> getAnchorY() {
+		public InterpretedValueSynth<SettableValue<?>, SettableValue<Double>> getAnchorY() {
 			return theAnchorY;
 		}
 
@@ -96,8 +96,8 @@ public class Rotate extends ExElement.Abstract implements TransformOp {
 		protected void doUpdate() throws ExpressoInterpretationException {
 			super.doUpdate();
 
-			theAnchorX = interpret(getDefinition().getAnchorX(), ModelTypes.Value.INT);
-			theAnchorY = interpret(getDefinition().getAnchorY(), ModelTypes.Value.INT);
+			theAnchorX = interpret(getDefinition().getAnchorX(), ModelTypes.Value.DOUBLE);
+			theAnchorY = interpret(getDefinition().getAnchorY(), ModelTypes.Value.DOUBLE);
 			theRadians = interpret(getDefinition().getRadians(), ModelTypes.Value.DOUBLE);
 		}
 
@@ -107,12 +107,12 @@ public class Rotate extends ExElement.Abstract implements TransformOp {
 		}
 	}
 
-	private ModelValueInstantiator<SettableValue<Integer>> theAnchorXInstantiator;
-	private ModelValueInstantiator<SettableValue<Integer>> theAnchorYInstantiator;
+	private ModelValueInstantiator<SettableValue<Double>> theAnchorXInstantiator;
+	private ModelValueInstantiator<SettableValue<Double>> theAnchorYInstantiator;
 	private ModelValueInstantiator<SettableValue<Double>> theRadiansInstantiator;
 
-	private SettableValue<SettableValue<Integer>> theAnchorX;
-	private SettableValue<SettableValue<Integer>> theAnchorY;
+	private SettableValue<SettableValue<Double>> theAnchorX;
+	private SettableValue<SettableValue<Double>> theAnchorY;
 	private SettableValue<SettableValue<Double>> theRadians;
 
 	Rotate(Object id) {
@@ -123,11 +123,11 @@ public class Rotate extends ExElement.Abstract implements TransformOp {
 		theRadians = SettableValue.create();
 	}
 
-	public SettableValue<Integer> getAnchorX() {
+	public SettableValue<Double> getAnchorX() {
 		return SettableValue.flatten(theAnchorX);
 	}
 
-	public SettableValue<Integer> getAnchorY() {
+	public SettableValue<Double> getAnchorY() {
 		return SettableValue.flatten(theAnchorY);
 	}
 

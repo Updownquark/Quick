@@ -72,6 +72,48 @@ public class QuickCoreInterpretation implements QonfigInterpretation {
 				return null;
 			}
 		});
+		TypeTokens.get().addSupplementaryCast(Float.class, QuickSize.class, new TypeTokens.SupplementaryCast<Float, QuickSize>() {
+			@Override
+			public TypeToken<? extends QuickSize> getCastType(TypeToken<? extends Float> sourceType) {
+				return TypeTokens.get().of(QuickSize.class);
+			}
+
+			@Override
+			public QuickSize cast(Float source) {
+				return source == null ? null : QuickSize.ofPixels(source.floatValue());
+			}
+
+			@Override
+			public boolean isSafe() {
+				return true;
+			}
+
+			@Override
+			public String canCast(Float source) {
+				return null;
+			}
+		});
+		TypeTokens.get().addSupplementaryCast(Double.class, QuickSize.class, new TypeTokens.SupplementaryCast<Double, QuickSize>() {
+			@Override
+			public TypeToken<? extends QuickSize> getCastType(TypeToken<? extends Double> sourceType) {
+				return TypeTokens.get().of(QuickSize.class);
+			}
+
+			@Override
+			public QuickSize cast(Double source) {
+				return source == null ? null : QuickSize.ofPixels(source.floatValue());
+			}
+
+			@Override
+			public boolean isSafe() {
+				return true;
+			}
+
+			@Override
+			public String canCast(Double source) {
+				return null;
+			}
+		});
 	}
 
 	@SuppressWarnings("unused")
@@ -197,34 +239,49 @@ public class QuickCoreInterpretation implements QonfigInterpretation {
 
 	private static UnaryOperatorSet unaryOps(UnaryOperatorSet unaryOps) {
 		return unaryOps.copy()//
-			.with("-", QuickSize.class, s -> new QuickSize(-s.percent, s.pixels), s -> new QuickSize(-s.percent, s.pixels),
-				"Size negation operator")//
+			.with("-", QuickSize.class, QuickSize::negate, QuickSize::negate, "Size negation operator")//
 			.build();
 	}
 
 	private static BinaryOperatorSet binaryOps(BinaryOperatorSet binaryOps) {
 		return binaryOps.copy()//
-			.with("+", QuickSize.class, Double.class, (s, d) -> new QuickSize(s.percent, s.pixels + (int) Math.round(d)),
-				(s, d, o) -> new QuickSize(s.percent, s.pixels - (int) Math.round(d)), null, "Size addition operator")//
-			.with("-", QuickSize.class, Double.class, (p, d) -> new QuickSize(p.percent, p.pixels - (int) Math.round(d)),
-				(s1, s2, o) -> new QuickSize(s1.percent, s1.pixels + (int) Math.round(s2)), null, "Size subtraction operator")//
-			.with("+", QuickSize.class, QuickSize.class, QuickSize::plus,
-				(s1, s2, o) -> new QuickSize(s1.percent - s2.percent, s1.pixels - s2.pixels), null, "Size addition operator")//
-			.with("-", QuickSize.class, QuickSize.class, QuickSize::minus,
-				(s1, s2, o) -> new QuickSize(s1.percent + s2.percent, s1.pixels + s2.pixels), null, "Size subtraction operator")//
-			.with("*", QuickSize.class, Double.class, (s, d) -> new QuickSize((float) (s.percent * d), (int) Math.round(s.pixels * d)),
-				(s, d, o) -> new QuickSize((float) (s.percent / d), (int) Math.round(s.pixels / d)), null, "Size multiplication operator")//
-			.with2("*", Double.class, QuickSize.class, QuickSize.class,
-				(d, s) -> new QuickSize((float) (s.percent * d), (int) Math.round(s.pixels * d)), (d, s, o) -> {
-					if (s == null)
-						return Double.NaN;
-					if (s.percent != 0.0f)
-						return o.percent * 1.0 / s.percent;
-					else
-						return o.pixels * 1.0 / s.pixels;
-				}, null, "Size multiplication operator")//
-			.with("/", QuickSize.class, Double.class, (s, d) -> new QuickSize((float) (s.percent / d), (int) Math.round(s.pixels / d)),
-				(s, d, o) -> new QuickSize((float) (s.percent * d), (int) Math.round(s.pixels * d)), null, "Size division operator")//
+			.with("+", QuickSize.class, QuickSize.class, QuickSize::plus, (s1, s2, o) -> s1.minus(s2), null, "Size addition operator")//
+			.with("+", QuickSize.class, Integer.class, QuickSize::plus, (s, d, o) -> s.plus(-d.intValue()), null, "Size addition operator")//
+			.with2("+", Integer.class, QuickSize.class, QuickSize.class, (d, s) -> s.plus(d), (d, s, o) -> d - s.getIPixels(), null,
+				"Size addition operator")//
+			.with("+", QuickSize.class, Float.class, QuickSize::plus, (s, d, o) -> s.plus(-d.floatValue()), null, "Size addition operator")//
+			.with2("+", Float.class, QuickSize.class, QuickSize.class, (d, s) -> s.plus(d), (d, s, o) -> d - s.getFPixels(), null,
+				"Size addition operator")//
+			.with("+", QuickSize.class, Double.class, (s, d) -> s.plus(d.floatValue()), (s, d, o) -> s.plus(-d.floatValue()), null,
+				"Size addition operator")//
+			.with2("+", Double.class, QuickSize.class, QuickSize.class, (d, s) -> s.plus(d.floatValue()), (d, s, o) -> d - s.getFPixels(),
+				null, "Size addition operator")//
+
+			.with("-", QuickSize.class, QuickSize.class, QuickSize::minus, (s1, s2, o) -> s1.plus(s2), null, "Size subtraction operator")//
+			.with("-", QuickSize.class, Integer.class, (s, d) -> s.plus(-d), (s, d, o) -> s.plus(d), null, "Size subtraction operator")//
+			.with("-", QuickSize.class, Float.class, (s, d) -> s.plus(-d), (s, d, o) -> s.plus(d.floatValue()), null,
+				"Size subtraction operator")//
+			.with("-", QuickSize.class, Double.class, (s, d) -> s.plus(-d.floatValue()), (s, d, o) -> s.plus(d.floatValue()), null,
+				"Size subtraction operator")//
+
+			.with("*", QuickSize.class, Integer.class, QuickSize::times, (s, d, o) -> s.divideBy(d), null, "Size multiplication operator")//
+			.with2("*", Integer.class, QuickSize.class, QuickSize.class, (d, s) -> s.times(d), (d, s, o) -> (int) o.divideBy(s), null,
+				"Size multiplication operator")//
+			.with("*", QuickSize.class, Float.class, (s, d) -> s.times(d.floatValue()), (s, d, o) -> s.times(1.0f / d.floatValue()), null,
+				"Size multiplication operator")//
+			.with2("*", Float.class, QuickSize.class, QuickSize.class, (d, s) -> s.times(d), (d, s, o) -> o.divideBy(s), null,
+				"Size multiplication operator")//
+			.with("*", QuickSize.class, Double.class, (s, d) -> s.times(d.floatValue()), (s, d, o) -> s.times(1.0f / d.floatValue()), null,
+				"Size multiplication operator")//
+			.with2("*", Double.class, QuickSize.class, QuickSize.class, (d, s) -> s.times(d.floatValue()),
+				(d, s, o) -> Double.valueOf(o.divideBy(s)), null, "Size multiplication operator")//
+
+			.with("/", QuickSize.class, Integer.class, QuickSize::divideBy, (s, d, o) -> s.times(d), null, "Size division operator")//
+			.with("/", QuickSize.class, Float.class, (s, d) -> s.times(1.0f / d.floatValue()), (s, d, o) -> s.times(d.floatValue()), null,
+				"Size division operator")//
+			.with("/", QuickSize.class, Double.class, (s, d) -> s.times(1.0f / d.floatValue()), (s, d, o) -> s.times(d.floatValue()), null,
+				"Size division operator")//
+
 			.build();
 	}
 

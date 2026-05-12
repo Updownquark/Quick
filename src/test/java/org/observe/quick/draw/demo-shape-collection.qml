@@ -18,7 +18,8 @@
 		<rectangle visible="rect!=null &amp; (attrs.alwaysVisible || shape.isVisible())"
 			left="rect.getX(Leading)" h-center="rect.getX(Center)" right="rect.getX(Trailing)"
 			top="rect.getY(Leading)" v-center="rect.getY(Center)" bottom="rect.getY(Trailing)"
-			width="rect.getWidth()" height="rect.getHeight()" rotation="rect.getRotation()/180*(float) Math.PI">
+			width="rect.getWidth()" height="rect.getHeight()" rotation="rect.getRotation()/180*(float) Math.PI"
+			debug-print="rect.getName()">
 			<model>
 				<value name="rect">shape instanceof ColoredRectangle ? (ColoredRectangle) shape : null</value>
 				<hook name="selectOnFocus" on="focused">focused ? (attrs.selected=rect) : null</hook>

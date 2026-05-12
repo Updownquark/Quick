@@ -212,12 +212,12 @@ public class BetterBorderLayout implements LayoutManager2 {
 				hStacks.add(width.plus(cross));
 				height = height.plus(size);
 				if (type >= 0) {
-					int minW = width.plus(c.getMinimumSize().width).resolveExponential();
+					int minW = width.plus(c.getMinimumSize().width).resolveIntExponential();
 					if (minW > largestMinW)
 						largestMinW = minW;
 				}
 				if (type <= 0) {
-					int maxW = width.plus(c.getMaximumSize().width).resolveExponential();
+					int maxW = width.plus(c.getMaximumSize().width).resolveIntExponential();
 					if (maxW < smallestMaxW)
 						smallestMaxW = maxW;
 				}
@@ -234,7 +234,7 @@ public class BetterBorderLayout implements LayoutManager2 {
 				if (type < 0)
 					minH = cs.height;
 				else {
-					minH = height.plus(c.getMinimumSize().height).resolveExponential();
+					minH = height.plus(c.getMinimumSize().height).resolveIntExponential();
 				}
 				if (minH > largestMinH)
 					largestMinH = minH;
@@ -242,7 +242,7 @@ public class BetterBorderLayout implements LayoutManager2 {
 				if (type > 0)
 					maxH = cs.height;
 				else {
-					maxH = height.plus(c.getMaximumSize().height).resolveExponential();
+					maxH = height.plus(c.getMaximumSize().height).resolveIntExponential();
 				}
 				if (maxH < smallestMaxH)
 					smallestMaxH = maxH;
@@ -265,23 +265,23 @@ public class BetterBorderLayout implements LayoutManager2 {
 				width = width.plus(d.width);
 				height = height.plus(d.height);
 			}
-			maxW = width.resolveExponential();
-			maxH = height.resolveExponential();
+			maxW = width.resolveIntExponential();
+			maxH = height.resolveIntExponential();
 		} else if (type <= 0) {
-			maxW = width.resolveExponential();
-			maxH = height.resolveExponential();
+			maxW = width.resolveIntExponential();
+			maxH = height.resolveIntExponential();
 		} else
 			maxW = maxH = 0;
 		if (type <= 0) {
 			for (QuickSize w : hStacks)
-				maxW = Math.max(maxW, w.resolveExponential());
+				maxW = Math.max(maxW, w.resolveIntExponential());
 			for (QuickSize h : vStacks)
-				maxH = Math.max(maxH, h.resolveExponential());
+				maxH = Math.max(maxH, h.resolveIntExponential());
 		} else {
 			for (QuickSize w : hStacks)
-				maxW = Math.min(maxW, w.resolveExponential());
+				maxW = Math.min(maxW, w.resolveIntExponential());
 			for (QuickSize h : vStacks)
-				maxH = Math.min(maxH, h.resolveExponential());
+				maxH = Math.min(maxH, h.resolveIntExponential());
 		}
 		if (type > 0) {
 			if (maxW == 0)
@@ -342,7 +342,7 @@ public class BetterBorderLayout implements LayoutManager2 {
 			switch (constraints.region) {
 			case North:
 			case South:
-				Integer evalSz = size == null ? null : size.evaluate(parentSize.height);
+				Integer evalSz = size == null ? null : size.evaluateInt(parentSize.height);
 				Integer minSz = size == null ? constraints.getSize(-1) : evalSz;
 				Integer prefSz = size == null ? constraints.getSize(0) : evalSz;
 				Integer maxSz = size == null ? constraints.getSize(1) : evalSz;
@@ -352,7 +352,7 @@ public class BetterBorderLayout implements LayoutManager2 {
 				break;
 			case East:
 			case West:
-				evalSz = size == null ? null : size.evaluate(parentSize.width);
+				evalSz = size == null ? null : size.evaluateInt(parentSize.width);
 				minSz = size == null ? constraints.getSize(-1) : evalSz;
 				prefSz = size == null ? constraints.getSize(0) : evalSz;
 				maxSz = size == null ? constraints.getSize(1) : evalSz;

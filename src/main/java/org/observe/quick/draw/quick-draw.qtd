@@ -7,6 +7,8 @@
 		<add-on name="shape-container" abstract="true">
 			<child-def name="shape" type="shape-publisher" min="0" max="inf" />
 		</add-on>
+		<?DOC Just modifies the type of the x and y coordinate values to be floating-point types instead of ints?>
+		<add-on name="shape-mouse-listener" requires="mouse-listener" />
 		<add-on name="shape" abstract="true" inherits="shape-publisher,with-background">
 			<styles>
 				<?DOC A value between 0 and 1 determining how this shape is drawn to the canvas.<br>
@@ -20,6 +22,8 @@
 			<attribute name="visible" type="expression" specify="optional" />
 			<?DOC An event that will cause this shape to repaint itself?>
 			<attribute name="repaint" type="expression" specify="optional" />
+			<?DOC A string identifier which, if non-null, will cause this shape to print information about where it is being drawn?>
+			<attribute name="debug-print" type="expression" specify="optional" />
 			<?DOC Listeners to events like mouse clicks or key presses?>
 			<child-def name="event-listener" type="event-listener" min="0" max="inf" />
 		</add-on>
@@ -32,18 +36,20 @@
 				<style-attribute name="stroke-dash" type="org.observe.quick.draw.StrokeDashing" />
 			</styles>
 		</add-on>
-		<add-on name="linear-shape" abstract="true" inherits="shape,with-stroke">
+		<add-on name="linear-drawing" abstract="true" inherits="with-stroke">
 			<styles>
 				<?DOC The thickness of the line?>
 				<style-attribute name="thickness" type="double" />
 			</styles>
 		</add-on>
+		<add-on name="linear-shape" abstract="true" inherits="shape,linear-drawing" />
 		<add-on name="bordered-shape" abstract="true" inherits="shape,with-border,with-stroke" />
 		<add-on name="simple-shape" abstract="true" inherits="bordered-shape,v-positionable,h-positionable,rotated">
 			<attribute name="width" type="expression" specify="optional" />
 			<attribute name="height" type="expression" specify="optional" />
 		</add-on>
 		<add-on name="root-text" requires="text" inherits="v-positionable,h-positionable,rotated" />
+		<add-on name="chart-tick-scheme" />
 	</add-ons>
 	
 	<elements>
@@ -63,6 +69,11 @@
 			<attribute name="active-shape-as" type="identifier" />
 			<child-mod child="shape-container.shape" min="1" />
 		</element-def>
+		<?DOC This is an extension of <shape-collection> because it is used in the same way, but it is implemented differently.<br>
+			This collection is able to handle many, many more values than <shape-collection>.
+			The trade-off is that this collection may be less efficient for small changes to the collection,
+			e.g. a single value addition or update.?>
+		<element-def name="light-weight-shape-collection" extends="shape-collection" />
 		<element-def name="rectangle" inherits="simple-shape,shape-container" />
 		<element-def name="ellipse" inherits="simple-shape" />
 		<element-def name="polygon" inherits="bordered-shape">
@@ -172,11 +183,50 @@
 			<?DOC The amount of rotation for the transformation, clockwise in radians?>
 			<attribute name="radians" type="expression" />
 		</element-def>
+		<element-def name="to-coords" extends="transform-op">
+			<attribute name="active" type="expression" default="true" />
+			<attribute name="source-width" type="expression" />
+			<attribute name="source-height" type="expression" />
+			<attribute name="flip-y" type="boolean" default="false" />
+			
+			<attribute name="target-min-x" type="expression" default="0" />
+			<attribute name="target-min-y" type="expression" default="0" />
+			<attribute name="target-width" type="expression" />
+			<attribute name="target-height" type="expression" />
+		</element-def>
+
+		<element-def name="chart" extends="rectangle">
+			<child-def name="h-axis" type="chart-axis" min="0" />
+			<child-def name="v-axis" type="chart-axis" min="0" />
+		</element-def>
+		<element-def name="chart-axis" inherits="linear-drawing,with-element-model">
+			<element-model>
+				<value name-attribute="tick-value-name" priority="100" />
+			</element-model>
+			<attribute name="tick-value-name" type="identifier" />
+			<attribute name="leading" type="expression" />
+			<attribute name="min" type="expression" />
+			<attribute name="max" type="expression" />
+			<attribute name="length" type="expression" />
+			<child-def name="scheme" type="chart-tick-scheme" />
+			<child-def name="label" type="text" min="0" />
+			<child-def name="grid-line" type="grid-line" min="0" />
+		</element-def>
+		<element-def name="grid-line" inherits="linear-shape">
+			<attribute name="on-top" type="expression" default="true" />
+		</element-def>
+		<element-def name="explicit-ticks" inherits="chart-tick-scheme">
+			<attribute name="ticks" type="expression" />
+		</element-def>
+		<element-def name="default-number-ticks" inherits="chart-tick-scheme" />
 	</elements>
 
 	<auto-inheritance>
 		<auto-inherit inherits="root-text">
 			<target element="text" role="shape-container.shape" />
+		</auto-inherit>
+		<auto-inherit inherits="shape-mouse-listener">
+			<target element="mouse-listener" role="shape.event-listener" />
 		</auto-inherit>
 	</auto-inheritance>
 </qonfig-def>

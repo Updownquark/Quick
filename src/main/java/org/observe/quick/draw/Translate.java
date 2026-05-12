@@ -55,8 +55,8 @@ public class Translate extends ExElement.Abstract implements TransformOp {
 	}
 
 	public static class Interpreted extends ExElement.Interpreted.Abstract<Translate> implements TransformOp.Interpreted<Translate> {
-		private InterpretedValueSynth<SettableValue<?>, SettableValue<Integer>> theX;
-		private InterpretedValueSynth<SettableValue<?>, SettableValue<Integer>> theY;
+		private InterpretedValueSynth<SettableValue<?>, SettableValue<Double>> theX;
+		private InterpretedValueSynth<SettableValue<?>, SettableValue<Double>> theY;
 
 		Interpreted(Def definition, ExElement.Interpreted<?> parent) {
 			super(definition, parent);
@@ -67,11 +67,11 @@ public class Translate extends ExElement.Abstract implements TransformOp {
 			return (Def) super.getDefinition();
 		}
 
-		public InterpretedValueSynth<SettableValue<?>, SettableValue<Integer>> getX() {
+		public InterpretedValueSynth<SettableValue<?>, SettableValue<Double>> getX() {
 			return theX;
 		}
 
-		public InterpretedValueSynth<SettableValue<?>, SettableValue<Integer>> getY() {
+		public InterpretedValueSynth<SettableValue<?>, SettableValue<Double>> getY() {
 			return theY;
 		}
 
@@ -84,8 +84,8 @@ public class Translate extends ExElement.Abstract implements TransformOp {
 		protected void doUpdate() throws ExpressoInterpretationException {
 			super.doUpdate();
 
-			theX = interpret(getDefinition().getX(), ModelTypes.Value.INT);
-			theY = interpret(getDefinition().getY(), ModelTypes.Value.INT);
+			theX = interpret(getDefinition().getX(), ModelTypes.Value.DOUBLE);
+			theY = interpret(getDefinition().getY(), ModelTypes.Value.DOUBLE);
 		}
 
 		@Override
@@ -94,11 +94,11 @@ public class Translate extends ExElement.Abstract implements TransformOp {
 		}
 	}
 
-	private ModelValueInstantiator<SettableValue<Integer>> theXInstantiator;
-	private ModelValueInstantiator<SettableValue<Integer>> theYInstantiator;
+	private ModelValueInstantiator<SettableValue<Double>> theXInstantiator;
+	private ModelValueInstantiator<SettableValue<Double>> theYInstantiator;
 
-	private SettableValue<SettableValue<Integer>> theX;
-	private SettableValue<SettableValue<Integer>> theY;
+	private SettableValue<SettableValue<Double>> theX;
+	private SettableValue<SettableValue<Double>> theY;
 
 	Translate(Object id) {
 		super(id);
@@ -107,11 +107,11 @@ public class Translate extends ExElement.Abstract implements TransformOp {
 		theY = SettableValue.create();
 	}
 
-	public SettableValue<Integer> getX() {
+	public SettableValue<Double> getX() {
 		return SettableValue.flatten(theX);
 	}
 
-	public SettableValue<Integer> getY() {
+	public SettableValue<Double> getY() {
 		return SettableValue.flatten(theY);
 	}
 

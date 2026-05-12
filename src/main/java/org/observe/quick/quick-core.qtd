@@ -247,9 +247,9 @@
 		<element-def name="mouse-listener" extends="event-listener" abstract="true">
 			<element-model>
 				<?DOC The x-coordinate of the mouse relative in the widget?>
-				<value name="x" type="int" />
+				<value name="x" />
 				<?DOC The y-coordinate of the mouse relative in the widget?>
-				<value name="y" type="int" />
+				<value name="y" />
 			</element-model>
 		</element-def>
 		<?DOC A listener for changes to the pressed state of mouse buttons that occur over a &lt;widget>?>

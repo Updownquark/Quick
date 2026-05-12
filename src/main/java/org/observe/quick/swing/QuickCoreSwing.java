@@ -384,8 +384,8 @@ public class QuickCoreSwing implements QuickInterpretation {
 				SettableValue<Boolean> ctrlPressed = mbl.isCtrlPressed();
 				SettableValue<Boolean> shiftPressed = mbl.isShiftPressed();
 				SettableValue<QuickMouseListener.MouseButton> button = mbl.getEventButton();
-				SettableValue<Integer> x = mbl.getEventX();
-				SettableValue<Integer> y = mbl.getEventY();
+				SettableValue<Integer> x = (SettableValue<Integer>) mbl.getEventX();
+				SettableValue<Integer> y = (SettableValue<Integer>) mbl.getEventY();
 
 				QuickMouseListener.MouseButton listenerButton = mbl.getButton();
 				if (mbl instanceof QuickMouseListener.QuickMouseClickListener) {
@@ -453,8 +453,8 @@ public class QuickCoreSwing implements QuickInterpretation {
 				SettableValue<Boolean> altPressed = mml.isAltPressed();
 				SettableValue<Boolean> ctrlPressed = mml.isCtrlPressed();
 				SettableValue<Boolean> shiftPressed = mml.isShiftPressed();
-				SettableValue<Integer> x = mml.getEventX();
-				SettableValue<Integer> y = mml.getEventY();
+				SettableValue<Integer> x = (SettableValue<Integer>) mml.getEventX();
+				SettableValue<Integer> y = (SettableValue<Integer>) mml.getEventY();
 				switch (mml.getEventType()) {
 				case Move:
 					component.addMouseMotionListener(new MouseAdapter() {
@@ -510,8 +510,8 @@ public class QuickCoreSwing implements QuickInterpretation {
 				SettableValue<Boolean> altPressed = sl.isAltPressed();
 				SettableValue<Boolean> ctrlPressed = sl.isCtrlPressed();
 				SettableValue<Boolean> shiftPressed = sl.isShiftPressed();
-				SettableValue<Integer> x = sl.getEventX();
-				SettableValue<Integer> y = sl.getEventY();
+				SettableValue<Integer> x = (SettableValue<Integer>) sl.getEventX();
+				SettableValue<Integer> y = (SettableValue<Integer>) sl.getEventY();
 				SettableValue<Integer> scrollAmount = sl.getScrollAmount();
 				component.addMouseWheelListener(new MouseAdapter() {
 					@Override

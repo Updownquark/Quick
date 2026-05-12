@@ -1,7 +1,6 @@
 package org.observe.quick;
 
 import java.text.ParseException;
-import java.util.Objects;
 
 import org.observe.expresso.InterpretedExpressoEnv;
 import org.observe.expresso.NonStructuredParser;
@@ -9,149 +8,1203 @@ import org.observe.util.TypeTokens;
 
 import com.google.common.reflect.TypeToken;
 
-/** Represents the linear size of one dimension of a widget */
-public class QuickSize {
-	/** A size of zero */
-	public static final QuickSize ZERO = new QuickSize(0.0f, 0);
+/** A size for one dimension of a widget or shape. A QuickSize may be absolute (e.g. pixels) or relative to the size of the container. */
+public interface QuickSize {
+	/** An absolute size with zero magnitude */
+	static ZeroSize ZERO = new ZeroSize();
 
-	/** The size relative to the container size (if greater than zero) */
-	public final float percent;
+	/** @return This size's absolute pixel value as an integer */
+	int getIPixels();
 
-	/** The size in pixels (if not equal to zero) */
-	public final int pixels;
+	/** @return Whether this size has a floating-point pixel value */
+	boolean hasFloatPixels();
+
+	/** @return This size's absolute pixel value as a float */
+	float getFPixels();
+
+	/** @return Whether this size has a relative ({@link #getPercent()}) component */
+	boolean isRelative();
+
+	/** @return This size's relative component as a percent of the container size */
+	float getPercent();
 
 	/**
-	 * @param percent The size relative to the container size
-	 * @param pixels The size in pixels
+	 * @param containerSize The size of the container
+	 * @return This size's value
 	 */
-	public QuickSize(float percent, int pixels) {
-		this.percent = percent;
-		this.pixels = pixels;
-	}
+	int evaluateInt(int containerSize);
 
 	/**
-	 * @param containerSize The length of the same dimension of the parent container
-	 * @return This size, in pixels
+	 * @param containerSize The size of the container
+	 * @return This size's value
 	 */
-	public int evaluate(int containerSize) {
-		int value;
-		if (percent != 0.0f)
-			value = Math.round(containerSize / 100.0f * percent) + pixels;
-		else
-			value = pixels;
-		return value;
-	}
+	float evaluateFloat(float containerSize);
+
+	/**
+	 * @return The number of pixels that a container must be for this size's pixels to be equal to its relative size as specified by
+	 *         {@link #getPercent()}, or just this size's pixels if one or both fields are zero
+	 */
+	int resolveIntExponential();
+
+	/**
+	 * @return The number of pixels that a container must be for this size's pixels to be equal to its relative size as specified by
+	 *         {@link #getPercent()}, or just this size's pixels if one or both fields are zero
+	 */
+	float resolveFloatExponential();
+
+	/** @return The negative of this size */
+	QuickSize negate();
 
 	/**
 	 * @param other The other size to add
-	 * @return A size that is the sum of this size and the other
+	 * @return A size that is this size plus the other
 	 */
-	public QuickSize plus(QuickSize other) {
-		int pix = pixels + other.pixels;
-		if (pix < 0)
-			pix = Integer.MAX_VALUE;
-		return new QuickSize(percent + other.percent, pix);
-	}
+	QuickSize plus(QuickSize other);
+
+	/**
+	 * @param pixels The pixels to add to this size
+	 * @return A size that is this size plus the given number of pixels
+	 */
+	QuickSize plus(int pixels);
+
+	/**
+	 * @param pixels The pixels to add to this size
+	 * @return A size that is this size plus the given number of pixels
+	 */
+	QuickSize plus(float pixels);
 
 	/**
 	 * @param other The other size to subtract
-	 * @return A size that is the difference of this size and the other
+	 * @return A new size that is this size minus the other
 	 */
-	public QuickSize minus(QuickSize other) {
-		return new QuickSize(percent - other.percent, pixels - other.pixels);
+	QuickSize minus(QuickSize other);
+
+	/**
+	 * @param amount The amount to multiply this size by
+	 * @return A size that is this size times the given amount
+	 */
+	QuickSize times(int amount);
+
+	/**
+	 * @param amount The amount to multiply this size by
+	 * @return A size that is this size times the given amount
+	 */
+	QuickSize times(float amount);
+
+	/**
+	 * @param amount The amount to divide this size by
+	 * @return A size that is this size divided by the given amount
+	 */
+	QuickSize divideBy(int amount);
+
+	float divideBy(QuickSize other);
+
+	/**
+	 * @param pixels The number of pixels to create the size for
+	 * @return An absolute size with the given number of pixels
+	 */
+	static QuickSize ofPixels(int pixels) {
+		return pixels == 0 ? ZERO : new IntPixels(pixels);
 	}
 
 	/**
-	 * @param adjPixels The number of pixels to add to this size
-	 * @return A size that is the sum of this size and the given number of pixels
+	 * @param pixels The number of pixels to create the size for
+	 * @return An absolute size with the given number of pixels
 	 */
-	public QuickSize plus(int adjPixels) {
-		int pix = pixels + adjPixels;
-		if (pix < 0)
-			pix = Integer.MAX_VALUE;
-		return new QuickSize(percent, pix);
+	static QuickSize ofPixels(float pixels) {
+		return pixels == 0.0f ? ZERO : new FloatPixels(pixels);
 	}
 
 	/**
-	 * @return The number of pixels that a container must be for this size's {@link #pixels} to be equal to its relative size as specified
-	 *         by {@link #percent}, or just {@link #pixels} if one or both fields are zero
+	 * @param percent The relative size in percent of the container length
+	 * @return A relative size with the given percentage
 	 */
-	public int resolveExponential() {
-		if (percent <= 0 || percent >= 100 || pixels <= 0)
-			return pixels;
-		// Solve absSize+percent/100*totalSize = totalSize
-		return Math.round(pixels / (1 - percent / 100));
+	static QuickSize ofPercent(float percent) {
+		return percent == 0.0f ? ZERO : new PercentSize(percent);
 	}
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(percent, pixels);
+	/**
+	 * @param lexips The number of pixels from the trailing edge of the container
+	 * @return A size (really this only makes sense for a position) that evaluates to the length of the container minus the given number of
+	 *         pixels
+	 */
+	static QuickSize ofLexips(int lexips) {
+		return lexips == 0 ? new PercentSize(100.0f) : new IntMixed(100.0f, -lexips);
 	}
 
-	@Override
-	public boolean equals(Object obj) {
-		if (obj == this)
-			return true;
-		else if (!(obj instanceof QuickSize))
+	/**
+	 * @param lexips The number of pixels from the trailing edge of the container
+	 * @return A size (really this only makes sense for a position) that evaluates to the length of the container minus the given number of
+	 *         pixels
+	 */
+	static QuickSize ofLexips(float lexips) {
+		return lexips == 0.0f ? new PercentSize(100.0f) : new FloatMixed(100.0f, -lexips);
+	}
+
+	/**
+	 * @param percent The relative size in percent of the container length
+	 * @param pixels The number of pixels to create the size for
+	 * @return A size that evaluates to the given percentage of the container length plus the given number of pixels
+	 */
+	static QuickSize of(float percent, int pixels) {
+		if (percent == 0.0f)
+			return ofPixels(pixels);
+		else if (pixels == 0)
+			return new PercentSize(percent);
+		else
+			return new IntMixed(percent, pixels);
+	}
+
+	/**
+	 * @param percent The relative size in percent of the container length
+	 * @param pixels The number of pixels to create the size for
+	 * @return A size that evaluates to the given percentage of the container length plus the given number of pixels
+	 */
+	static QuickSize of(float percent, float pixels) {
+		if (percent == 0.0f)
+			return ofPixels(pixels);
+		else if (pixels == 0.0f)
+			return new PercentSize(percent);
+		else
+			return new FloatMixed(percent, pixels);
+	}
+
+	/**
+	 * @param text The text to parse as a position
+	 * @return The parsed position
+	 * @throws NumberFormatException If the number component of the position could not be parsed
+	 */
+	static QuickSize parsePosition(String text) throws NumberFormatException {
+		boolean isFloat = false;
+		for (int c = 0; !isFloat && c < text.length(); c++) {
+			switch (text.charAt(c)) {
+			case '.':
+			case 'E':
+			case 'e':
+				isFloat = true;
+			}
+		}
+		String content;
+		boolean px = false, xp = false;
+		if (text.endsWith("px")) {
+			content = text.substring(0, text.length() - 2);
+			px = true;
+		} else if (text.endsWith("%")) {
+			content = text.substring(0, text.length() - 1);
+		} else if (text.endsWith("xp")) {
+			content = text.substring(0, text.length() - 2);
+			xp = true;
+		} else {
+			content = text;
+			px = true;
+		}
+		if (px)
+			return isFloat ? ofPixels(Float.parseFloat(content)) : ofPixels(Integer.parseInt(content));
+		else if (xp)
+			return isFloat ? ofLexips(Float.parseFloat(content)) : ofLexips(Integer.parseInt(content));
+		else
+			return ofPercent(Float.parseFloat(content));
+	}
+
+	/**
+	 * @param text The text to parse as a size
+	 * @return The parsed size
+	 * @throws NumberFormatException If the number component of the size could not be parsed
+	 */
+	static QuickSize parseSize(String text) throws NumberFormatException {
+		boolean isFloat = false;
+		for (int c = 0; !isFloat && c < text.length(); c++) {
+			switch (text.charAt(c)) {
+			case '.':
+			case 'E':
+			case 'e':
+				isFloat = true;
+			}
+		}
+		String content;
+		boolean px = false;
+		if (text.endsWith("px")) {
+			content = text.substring(0, text.length() - 2);
+			px = true;
+		} else if (text.endsWith("%")) {
+			content = text.substring(0, text.length() - 1);
+		} else {
+			content = text;
+			px = true;
+		}
+		if (px)
+			return isFloat ? ofPixels(Float.parseFloat(content)) : ofPixels(Integer.parseInt(content));
+		else
+			return ofPercent(Float.parseFloat(content));
+	}
+
+	/** The type of {@link QuickSize#ZERO} */
+	static class ZeroSize implements QuickSize {
+		private ZeroSize() {
+		}
+
+		@Override
+		public int getIPixels() {
+			return 0;
+		}
+
+		@Override
+		public boolean hasFloatPixels() {
 			return false;
-		return percent == ((QuickSize) obj).percent && pixels == ((QuickSize) obj).pixels;
-	}
+		}
 
-	@Override
-	public String toString() {
-		if (percent != 0.0f) {
-			if (pixels > 0)
-				return percent + "%+" + pixels + "px";
-			else if (pixels < 0)
-				return percent + "%" + pixels + "px";
+		@Override
+		public float getFPixels() {
+			return 0.0f;
+		}
+
+		@Override
+		public boolean isRelative() {
+			return false;
+		}
+
+		@Override
+		public float getPercent() {
+			return 0.0f;
+		}
+
+		@Override
+		public int evaluateInt(int containerSize) {
+			return 0;
+		}
+
+		@Override
+		public float evaluateFloat(float containerSize) {
+			return 0.0f;
+		}
+
+		@Override
+		public int resolveIntExponential() {
+			return 0;
+		}
+
+		@Override
+		public float resolveFloatExponential() {
+			return 0.0f;
+		}
+
+		@Override
+		public QuickSize negate() {
+			return this;
+		}
+
+		@Override
+		public QuickSize plus(QuickSize other) {
+			return other;
+		}
+
+		@Override
+		public QuickSize plus(int pixels) {
+			return pixels == 0 ? this : new IntPixels(pixels);
+		}
+
+		@Override
+		public QuickSize plus(float pixels) {
+			return pixels == 0.0f ? this : new FloatPixels(pixels);
+		}
+
+		@Override
+		public QuickSize minus(QuickSize other) {
+			return other.negate();
+		}
+
+		@Override
+		public QuickSize times(int amount) {
+			return this;
+		}
+
+		@Override
+		public QuickSize times(float amount) {
+			return this;
+		}
+
+		@Override
+		public QuickSize divideBy(int amount) {
+			return this;
+		}
+
+		@Override
+		public float divideBy(QuickSize other) {
+			return 0.0f;
+		}
+
+		@Override
+		public int hashCode() {
+			return 0;
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (this == obj)
+				return true;
+			else if (!(obj instanceof QuickSize))
+				return false;
+			QuickSize other = (QuickSize) obj;
+			if (other.isRelative())
+				return false;
+			else if (other.hasFloatPixels())
+				return other.getFPixels() == 0.0f;
 			else
-				return percent + "%";
-		} else
-			return pixels + "px";
+				return other.getIPixels() == 0;
+		}
+
+		@Override
+		public String toString() {
+			return "0px";
+		}
 	}
 
-	/**
-	 * @param pixels The number of pixels
-	 * @return A size for the given number of pixels
-	 */
-	public static QuickSize ofPixels(int pixels) {
-		if (pixels == 0)
-			return ZERO;
-		return new QuickSize(0.0f, pixels);
+	/** Absolute size with int-typed pixels */
+	static class IntPixels implements QuickSize {
+		private final int thePixels;
+
+		private IntPixels(int pixels) {
+			thePixels = pixels;
+		}
+
+		@Override
+		public int getIPixels() {
+			return thePixels;
+		}
+
+		@Override
+		public boolean hasFloatPixels() {
+			return false;
+		}
+
+		@Override
+		public float getFPixels() {
+			return thePixels;
+		}
+
+		@Override
+		public boolean isRelative() {
+			return false;
+		}
+
+		@Override
+		public float getPercent() {
+			return 0.0f;
+		}
+
+		@Override
+		public int evaluateInt(int containerSize) {
+			return thePixels;
+		}
+
+		@Override
+		public float evaluateFloat(float containerSize) {
+			return thePixels;
+		}
+
+		@Override
+		public int resolveIntExponential() {
+			return thePixels;
+		}
+
+		@Override
+		public float resolveFloatExponential() {
+			return thePixels;
+		}
+
+		@Override
+		public QuickSize negate() {
+			return new IntPixels(-thePixels);
+		}
+
+		@Override
+		public QuickSize plus(QuickSize other) {
+			if (other == ZERO)
+				return this;
+			else if (other.isRelative()) {
+				if (other.hasFloatPixels())
+					return QuickSize.of(other.getPercent(), thePixels + other.getFPixels());
+				else
+					return QuickSize.of(other.getPercent(), thePixels + other.getIPixels());
+			} else {
+				if (other.hasFloatPixels())
+					return QuickSize.ofPixels(thePixels + other.getFPixels());
+				else
+					return QuickSize.ofPixels(thePixels + other.getIPixels());
+			}
+		}
+
+		@Override
+		public QuickSize plus(int pixels) {
+			return QuickSize.ofPixels(thePixels + pixels);
+		}
+
+		@Override
+		public QuickSize plus(float pixels) {
+			return QuickSize.ofPixels(thePixels + pixels);
+		}
+
+		@Override
+		public QuickSize minus(QuickSize other) {
+			if (other == ZERO)
+				return this;
+			else if (other.isRelative()) {
+				if (other.hasFloatPixels())
+					return QuickSize.of(-other.getPercent(), thePixels - other.getFPixels());
+				else
+					return QuickSize.of(-other.getPercent(), thePixels - other.getIPixels());
+			} else {
+				if (other.hasFloatPixels())
+					return QuickSize.ofPixels(thePixels - other.getFPixels());
+				else
+					return QuickSize.ofPixels(thePixels - other.getIPixels());
+			}
+		}
+
+		@Override
+		public QuickSize times(int amount) {
+			switch (amount) {
+			case 0:
+				return ZERO;
+			case 1:
+				return this;
+			default:
+				return new IntPixels(thePixels * amount);
+			}
+		}
+
+		@Override
+		public QuickSize times(float amount) {
+			if (amount == 0.0f)
+				return ZERO;
+			else if (amount == 1.0f)
+				return this;
+			else
+				return new FloatPixels(thePixels * amount);
+		}
+
+		@Override
+		public QuickSize divideBy(int amount) {
+			if (amount == 1)
+				return this;
+			else if (Math.abs(amount) > thePixels)
+				return ZERO;
+			else
+				return new IntPixels(thePixels / amount);
+		}
+
+		@Override
+		public float divideBy(QuickSize other) {
+			return thePixels / other.getFPixels();
+		}
+
+		@Override
+		public int hashCode() {
+			return thePixels;
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (this == obj)
+				return true;
+			else if (!(obj instanceof QuickSize))
+				return false;
+			QuickSize other = (QuickSize) obj;
+			if (other.isRelative())
+				return false;
+			else if (other.hasFloatPixels())
+				return thePixels == other.getFPixels();
+			else
+				return thePixels == other.getIPixels();
+		}
+
+		@Override
+		public String toString() {
+			return thePixels + "px";
+		}
 	}
 
-	/**
-	 * @param text The text to parse
-	 * @return The position represented by the text
-	 * @throws NumberFormatException If the position could not be parsed
-	 */
-	public static QuickSize parsePosition(String text) throws NumberFormatException {
-		if (text.endsWith("px"))
-			return new QuickSize(0.0f, Integer.parseInt(text.substring(0, text.length() - 2)));
-		else if (text.endsWith("%"))
-			return new QuickSize(Float.parseFloat(text.substring(0, text.length() - 1)), 0);
-		else if (text.endsWith("xp"))
-			return new QuickSize(100.0f, -Integer.parseInt(text.substring(0, text.length() - 2)));
-		else
-			return new QuickSize(0.0f, Integer.parseInt(text));
+	/** Absolute size with float-typed pixels */
+	static class FloatPixels implements QuickSize {
+		private final float thePixels;
+
+		private FloatPixels(float pixels) {
+			thePixels = pixels;
+		}
+
+		@Override
+		public int getIPixels() {
+			return (int) thePixels;
+		}
+
+		@Override
+		public boolean hasFloatPixels() {
+			return true;
+		}
+
+		@Override
+		public float getFPixels() {
+			return thePixels;
+		}
+
+		@Override
+		public boolean isRelative() {
+			return false;
+		}
+
+		@Override
+		public float getPercent() {
+			return 0.0f;
+		}
+
+		@Override
+		public int evaluateInt(int containerSize) {
+			return (int) thePixels;
+		}
+
+		@Override
+		public float evaluateFloat(float containerSize) {
+			return thePixels;
+		}
+
+		@Override
+		public int resolveIntExponential() {
+			return (int) thePixels;
+		}
+
+		@Override
+		public float resolveFloatExponential() {
+			return thePixels;
+		}
+
+		@Override
+		public QuickSize negate() {
+			return new FloatPixels(-thePixels);
+		}
+
+		@Override
+		public QuickSize plus(QuickSize other) {
+			if (other == ZERO)
+				return this;
+			else if (other.isRelative())
+				return QuickSize.of(other.getPercent(), thePixels + other.getFPixels());
+			else
+				return QuickSize.ofPixels(thePixels + other.getFPixels());
+		}
+
+		@Override
+		public QuickSize plus(int pixels) {
+			return QuickSize.ofPixels(thePixels + pixels);
+		}
+
+		@Override
+		public QuickSize plus(float pixels) {
+			return QuickSize.ofPixels(thePixels + pixels);
+		}
+
+		@Override
+		public QuickSize minus(QuickSize other) {
+			if (other == ZERO)
+				return this;
+			else if (other.isRelative())
+				return QuickSize.of(-other.getPercent(), thePixels - other.getFPixels());
+			else
+				return QuickSize.ofPixels(thePixels - other.getFPixels());
+		}
+
+		@Override
+		public QuickSize times(int amount) {
+			switch (amount) {
+			case 0:
+				return ZERO;
+			case 1:
+				return this;
+			default:
+				return new FloatPixels(thePixels * amount);
+			}
+		}
+
+		@Override
+		public QuickSize times(float amount) {
+			if (amount == 0.0f)
+				return ZERO;
+			else if (amount == 1.0f)
+				return this;
+			else
+				return new FloatPixels(thePixels * amount);
+		}
+
+		@Override
+		public QuickSize divideBy(int amount) {
+			if (amount == 1)
+				return this;
+			else
+				return new FloatPixels(thePixels / amount);
+		}
+
+		@Override
+		public float divideBy(QuickSize other) {
+			return thePixels / other.getFPixels();
+		}
+
+		@Override
+		public int hashCode() {
+			return Float.hashCode(thePixels);
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (this == obj)
+				return true;
+			else if (!(obj instanceof QuickSize))
+				return false;
+			QuickSize other = (QuickSize) obj;
+			return !other.isRelative() && other.getFPixels() == thePixels;
+		}
+
+		@Override
+		public String toString() {
+			return thePixels + "px";
+		}
 	}
 
-	/**
-	 * @param text The text to parse
-	 * @return The size represented by the text
-	 * @throws NumberFormatException If the size could not be parsed
-	 */
-	public static QuickSize parseSize(String text) throws NumberFormatException {
-		if (text.endsWith("px"))
-			return new QuickSize(0.0f, Integer.parseInt(text.substring(0, text.length() - 2)));
-		else if (text.endsWith("%"))
-			return new QuickSize(Float.parseFloat(text.substring(0, text.length() - 1)), 0);
-		else
-			return new QuickSize(0.0f, Integer.parseInt(text));
+	/** Relative size with no absolute component */
+	static class PercentSize implements QuickSize {
+		private final float thePercent;
+
+		private PercentSize(float percent) {
+			thePercent = percent;
+		}
+
+		@Override
+		public int getIPixels() {
+			return 0;
+		}
+
+		@Override
+		public boolean hasFloatPixels() {
+			return false;
+		}
+
+		@Override
+		public float getFPixels() {
+			return 0.0f;
+		}
+
+		@Override
+		public boolean isRelative() {
+			return true;
+		}
+
+		@Override
+		public float getPercent() {
+			return thePercent;
+		}
+
+		@Override
+		public int evaluateInt(int containerSize) {
+			return Math.round(containerSize / 100.0f * thePercent);
+		}
+
+		@Override
+		public float evaluateFloat(float containerSize) {
+			return containerSize / 100.0f * thePercent;
+		}
+
+		@Override
+		public int resolveIntExponential() {
+			return 0;
+		}
+
+		@Override
+		public float resolveFloatExponential() {
+			return 0.0f;
+		}
+
+		@Override
+		public QuickSize negate() {
+			return new PercentSize(-thePercent);
+		}
+
+		@Override
+		public QuickSize plus(QuickSize other) {
+			if (other.isRelative()) {
+				if (other.hasFloatPixels())
+					return QuickSize.of(thePercent + other.getPercent(), other.getFPixels());
+				else
+					return QuickSize.of(thePercent + other.getPercent(), other.getIPixels());
+			} else {
+				if (other.hasFloatPixels())
+					return QuickSize.of(thePercent, other.getFPixels());
+				else
+					return QuickSize.of(thePercent, other.getIPixels());
+			}
+		}
+
+		@Override
+		public QuickSize plus(int pixels) {
+			return pixels == 0 ? this : new IntMixed(thePercent, pixels);
+		}
+
+		@Override
+		public QuickSize plus(float pixels) {
+			return pixels == 0.0f ? this : new FloatMixed(thePercent, pixels);
+		}
+
+		@Override
+		public QuickSize minus(QuickSize other) {
+			if (other.isRelative()) {
+				if (other.hasFloatPixels())
+					return QuickSize.of(thePercent - other.getPercent(), -other.getFPixels());
+				else
+					return QuickSize.of(thePercent - other.getPercent(), -other.getIPixels());
+			} else {
+				if (other.hasFloatPixels())
+					return QuickSize.of(thePercent, -other.getFPixels());
+				else
+					return QuickSize.of(thePercent, -other.getIPixels());
+			}
+		}
+
+		@Override
+		public QuickSize times(int amount) {
+			if (amount == 0)
+				return ZERO;
+			else if (amount == 1)
+				return this;
+			else
+				return new PercentSize(thePercent * amount);
+		}
+
+		@Override
+		public QuickSize times(float amount) {
+			if (amount == 0.0f)
+				return ZERO;
+			else if (amount == 1.0f)
+				return this;
+			else
+				return new PercentSize(thePercent * amount);
+		}
+
+		@Override
+		public QuickSize divideBy(int amount) {
+			if (amount == 1)
+				return this;
+			else
+				return new PercentSize(thePercent / amount);
+		}
+
+		@Override
+		public float divideBy(QuickSize other) {
+			return thePercent / other.getPercent();
+		}
+
+		@Override
+		public int hashCode() {
+			return Float.hashCode(thePercent);
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (this == obj)
+				return true;
+			else if (obj instanceof PercentSize)
+				return thePercent == ((PercentSize) obj).thePercent;
+			else if (!(obj instanceof QuickSize))
+				return false;
+			QuickSize other = (QuickSize) obj;
+			if (!other.isRelative() || thePercent != other.getPercent())
+				return false;
+			else if (other.hasFloatPixels())
+				return other.getFPixels() == 0;
+			else
+				return other.getIPixels() == 0;
+		}
+
+		@Override
+		public String toString() {
+			return thePercent + "%";
+		}
+	}
+
+	/** Relative size with int-typed pixels */
+	static class IntMixed implements QuickSize {
+		private final float thePercent;
+		private final int thePixels;
+
+		private IntMixed(float percent, int pixels) {
+			thePercent = percent;
+			thePixels = pixels;
+		}
+
+		@Override
+		public int getIPixels() {
+			return thePixels;
+		}
+
+		@Override
+		public boolean hasFloatPixels() {
+			return false;
+		}
+
+		@Override
+		public float getFPixels() {
+			return thePixels;
+		}
+
+		@Override
+		public boolean isRelative() {
+			return true;
+		}
+
+		@Override
+		public float getPercent() {
+			return thePercent;
+		}
+
+		@Override
+		public int evaluateInt(int containerSize) {
+			return Math.round(containerSize / 100.0f * thePercent) + thePixels;
+		}
+
+		@Override
+		public float evaluateFloat(float containerSize) {
+			return containerSize / 100.0f * thePercent + thePixels;
+		}
+
+		@Override
+		public int resolveIntExponential() {
+			if (thePercent <= 0 || thePercent >= 100 || thePixels <= 0)
+				return thePixels;
+			// Solve absSize+percent/100*totalSize = totalSize
+			return Math.round(thePixels / (1 - thePercent / 100));
+		}
+
+		@Override
+		public float resolveFloatExponential() {
+			if (thePercent <= 0 || thePercent >= 100 || thePixels <= 0)
+				return thePixels;
+			// Solve absSize+percent/100*totalSize = totalSize
+			return thePixels / (1 - thePercent / 100);
+		}
+
+		@Override
+		public QuickSize negate() {
+			return new IntMixed(-thePercent, -thePixels);
+		}
+
+		@Override
+		public QuickSize plus(QuickSize other) {
+			if (other == ZERO)
+				return this;
+			else if (other.isRelative()) {
+				if (other.hasFloatPixels())
+					return QuickSize.of(thePercent + other.getPercent(), thePixels + other.getFPixels());
+				else
+					return QuickSize.of(thePercent + other.getPercent(), thePixels + other.getIPixels());
+			} else {
+				if (other.hasFloatPixels())
+					return QuickSize.of(thePercent, thePixels + other.getFPixels());
+				else
+					return QuickSize.of(thePercent, thePixels + other.getIPixels());
+			}
+		}
+
+		@Override
+		public QuickSize plus(int pixels) {
+			if (pixels == 0)
+				return this;
+			int newPixels = thePixels + pixels;
+			if (newPixels == 0)
+				return new PercentSize(thePercent);
+			else
+				return QuickSize.of(thePercent, newPixels);
+		}
+
+		@Override
+		public QuickSize plus(float pixels) {
+			if (pixels == 0.0f)
+				return this;
+			float newPixels = thePixels + pixels;
+			if (newPixels == 0.0f)
+				return new PercentSize(thePercent);
+			else
+				return QuickSize.of(thePercent, newPixels);
+		}
+
+		@Override
+		public QuickSize minus(QuickSize other) {
+			if (other == ZERO)
+				return this;
+			else if (other.isRelative()) {
+				if (other.hasFloatPixels())
+					return QuickSize.of(thePercent - other.getPercent(), thePixels - other.getFPixels());
+				else
+					return QuickSize.of(thePercent - other.getPercent(), thePixels - other.getIPixels());
+			} else {
+				if (other.hasFloatPixels())
+					return QuickSize.of(thePercent, thePixels - other.getFPixels());
+				else
+					return QuickSize.of(thePercent, thePixels - other.getIPixels());
+			}
+		}
+
+		@Override
+		public QuickSize times(int amount) {
+			switch (amount) {
+			case 0:
+				return ZERO;
+			case 1:
+				return this;
+			default:
+				return new IntMixed(thePercent * amount, thePixels * amount);
+			}
+		}
+
+		@Override
+		public QuickSize times(float amount) {
+			if (amount == 0.0f)
+				return ZERO;
+			else if (amount == 1.0f)
+				return this;
+			else
+				return new FloatMixed(thePercent * amount, thePixels * amount);
+		}
+
+		@Override
+		public QuickSize divideBy(int amount) {
+			if (amount == 1)
+				return this;
+			else if (Math.abs(amount) > thePixels)
+				return new PercentSize(thePercent / amount);
+			else
+				return new IntMixed(thePercent / amount, thePixels / amount);
+		}
+
+		@Override
+		public float divideBy(QuickSize other) {
+			float pctDiv = thePercent / other.getPercent();
+			float pixDiv = thePixels / other.getFPixels();
+			if (Float.isInfinite(pctDiv))
+				return pixDiv;
+			else if (Float.isInfinite(pixDiv))
+				return pctDiv;
+			else
+				return Math.max(pctDiv, pixDiv);
+		}
+
+		@Override
+		public int hashCode() {
+			return Integer.rotateLeft(Float.hashCode(thePercent), 16) ^ thePixels;
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (this == obj)
+				return true;
+			else if (!(obj instanceof QuickSize))
+				return false;
+			QuickSize other = (QuickSize) obj;
+			if (!other.isRelative() || thePercent != other.getPercent())
+				return false;
+			else if (other.hasFloatPixels())
+				return other.getFPixels() == thePixels;
+			else
+				return other.getIPixels() == thePixels;
+		}
+
+		@Override
+		public String toString() {
+			if (thePixels >= 0)
+				return thePercent + "%+" + thePixels + "px";
+			else
+				return thePercent + "%" + thePixels + "px";
+		}
+	}
+
+	/** Relative size with float-typed pixels */
+	static class FloatMixed implements QuickSize {
+		private final float thePercent;
+		private final float thePixels;
+
+		private FloatMixed(float percent, float pixels) {
+			thePercent = percent;
+			thePixels = pixels;
+		}
+
+		@Override
+		public int getIPixels() {
+			return (int) thePixels;
+		}
+
+		@Override
+		public boolean hasFloatPixels() {
+			return true;
+		}
+
+		@Override
+		public float getFPixels() {
+			return thePixels;
+		}
+
+		@Override
+		public boolean isRelative() {
+			return true;
+		}
+
+		@Override
+		public float getPercent() {
+			return thePercent;
+		}
+
+		@Override
+		public int evaluateInt(int containerSize) {
+			return Math.round(containerSize / 100.0f * thePercent + thePixels);
+		}
+
+		@Override
+		public float evaluateFloat(float containerSize) {
+			return containerSize / 100.0f * thePercent + thePixels;
+		}
+
+		@Override
+		public int resolveIntExponential() {
+			if (thePercent <= 0 || thePercent >= 100 || thePixels <= 0)
+				return (int) thePixels;
+			// Solve absSize+percent/100*totalSize = totalSize
+			return Math.round(thePixels / (1 - thePercent / 100));
+		}
+
+		@Override
+		public float resolveFloatExponential() {
+			if (thePercent <= 0 || thePercent >= 100 || thePixels <= 0)
+				return (int) thePixels;
+			// Solve absSize+percent/100*totalSize = totalSize
+			return thePixels / (1 - thePercent / 100);
+		}
+
+		@Override
+		public QuickSize negate() {
+			return new FloatMixed(-thePercent, -thePixels);
+		}
+
+		@Override
+		public QuickSize plus(QuickSize other) {
+			if (other == ZERO)
+				return this;
+			else if (other.isRelative()) {
+				return QuickSize.of(thePercent + other.getPercent(), thePixels + other.getFPixels());
+			} else {
+				return QuickSize.of(thePercent, thePixels + other.getFPixels());
+			}
+		}
+
+		@Override
+		public QuickSize plus(int pixels) {
+			if (pixels == 0)
+				return this;
+			float newPixels = thePixels + pixels;
+			if (newPixels == 0.0f)
+				return new PercentSize(thePercent);
+			else
+				return QuickSize.of(thePercent, newPixels);
+		}
+
+		@Override
+		public QuickSize plus(float pixels) {
+			if (pixels == 0)
+				return this;
+			float newPixels = thePixels + pixels;
+			if (newPixels == 0.0f)
+				return new PercentSize(thePercent);
+			else
+				return QuickSize.of(thePercent, newPixels);
+		}
+
+		@Override
+		public QuickSize minus(QuickSize other) {
+			if (other == ZERO)
+				return this;
+			else if (other.isRelative()) {
+				return QuickSize.of(thePercent - other.getPercent(), thePixels - other.getFPixels());
+			} else {
+				return QuickSize.of(thePercent, thePixels - other.getFPixels());
+			}
+		}
+
+		@Override
+		public QuickSize times(int amount) {
+			switch (amount) {
+			case 0:
+				return ZERO;
+			case 1:
+				return this;
+			default:
+				return new FloatMixed(thePercent * amount, thePixels * amount);
+			}
+		}
+
+		@Override
+		public QuickSize times(float amount) {
+			if (amount == 0.0f)
+				return ZERO;
+			else if (amount == 1.0f)
+				return this;
+			else
+				return new FloatMixed(thePercent * amount, thePixels * amount);
+		}
+
+		@Override
+		public QuickSize divideBy(int amount) {
+			if (amount == 1)
+				return this;
+			else
+				return new FloatMixed(thePercent / amount, thePixels / amount);
+		}
+
+		@Override
+		public float divideBy(QuickSize other) {
+			float pctDiv = thePercent / other.getPercent();
+			float pixDiv = thePixels / other.getFPixels();
+			if (Float.isInfinite(pctDiv))
+				return pixDiv;
+			else if (Float.isInfinite(pixDiv))
+				return pctDiv;
+			else
+				return Math.max(pctDiv, pixDiv);
+		}
+
+		@Override
+		public int hashCode() {
+			return Integer.rotateLeft(Float.hashCode(thePercent), 16) ^ Float.hashCode(thePixels);
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (this == obj)
+				return true;
+			else if (!(obj instanceof QuickSize))
+				return false;
+			QuickSize other = (QuickSize) obj;
+			if (!other.isRelative() || thePercent != other.getPercent())
+				return false;
+			else if (other.hasFloatPixels())
+				return other.getFPixels() == thePixels;
+			else
+				return other.getIPixels() == thePixels;
+		}
+
+		@Override
+		public String toString() {
+			if (thePixels >= 0.0f)
+				return thePercent + "%+" + thePixels + "px";
+			else
+				return thePercent + "%" + thePixels + "px";
+		}
 	}
 
 	/** Parses {@link QuickSize}s for Expresso */
-	public static class Parser extends NonStructuredParser.Simple<QuickSize> {
+	static class Parser extends NonStructuredParser.Simple<QuickSize> {
 		private final boolean isPosition;
 
 		/** @param position Whether this parser should parse positions (potentially with "xp" unit) or sizes */
@@ -182,8 +1235,12 @@ public class QuickSize {
 			switch (text.substring(c).trim()) {
 			case "px":
 			case "%":
-			case "xp":
 				break;
+			case "xp":
+				if (isPosition)
+					break;
+				else
+					return false;
 			default:
 				return false;
 			}
@@ -234,7 +1291,7 @@ public class QuickSize {
 				} catch (NumberFormatException e) {
 					throw new ParseException("Could not parse " + (isPosition ? "position" : "size") + " value: '" + numberStr + "'", 0);
 				}
-				return (T2) new QuickSize(value, 0);
+				return (T2) ofPercent(value);
 			} else {
 				int value;
 				try {
@@ -243,15 +1300,15 @@ public class QuickSize {
 					throw new ParseException("Could not parse " + (isPosition ? "position" : "size") + " value: '" + numberStr + "'", 0);
 				}
 				if (xp)
-					return (T2) new QuickSize(100.0f, -value);
+					return (T2) ofLexips(value);
 				else
-					return (T2) new QuickSize(0.0f, value);
+					return (T2) ofPixels(value);
 			}
 		}
 
 		@Override
 		public String getDescription() {
-			return "Simple Size literal";
+			return "Simple " + (isPosition ? "position" : "size") + " literal";
 		}
 	}
 }

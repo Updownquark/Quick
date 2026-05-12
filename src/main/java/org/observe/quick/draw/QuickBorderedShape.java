@@ -20,14 +20,14 @@ import org.observe.quick.style.QuickStyled.QuickInstanceStyle;
 import org.observe.quick.style.QuickTypeStyle;
 import org.qommons.config.QonfigElementOrAddOn;
 
-public interface QuickBorderedShape extends QuickWithStroke {
+public interface QuickBorderedShape extends QuickShape, QuickWithStroke {
 	public static final String BORDERED_SHAPE = "bordered-shape";
 
 	@ExElementTraceable(toolkit = QuickDrawInterpretation.DRAW,
 		qonfigType = BORDERED_SHAPE,
 		interpretation = Interpreted.class,
 		instance = QuickBorderedShape.class)
-	public interface Def<E extends QuickShape> extends QuickWithStroke.Def<E> {
+	public interface Def<E extends QuickBorderedShape> extends QuickShape.Def<E>, QuickWithStroke.Def<E> {
 		@Override
 		QuickBorderedShapeStyle.Def wrap(QuickInstanceStyle.Def parentStyle, QuickCompiledStyle style);
 
@@ -37,7 +37,8 @@ public interface QuickBorderedShape extends QuickWithStroke {
 		@Override
 		Interpreted<? extends E> interpret(ExElement.Interpreted<?> parent);
 
-		public abstract class Abstract<E extends QuickBorderedShape> extends QuickShape.Def.Abstract<E> implements QuickBorderedShape.Def<E> {
+		public abstract class Abstract<E extends QuickBorderedShape> extends QuickShape.Def.Abstract<E>
+		implements QuickBorderedShape.Def<E> {
 			/**
 			 * @param parent The parent container definition
 			 * @param type The element type that this shape is interpreted from
@@ -58,7 +59,7 @@ public interface QuickBorderedShape extends QuickWithStroke {
 		}
 	}
 
-	public interface Interpreted<E extends QuickBorderedShape> extends QuickWithStroke.Interpreted<E> {
+	public interface Interpreted<E extends QuickBorderedShape> extends QuickShape.Interpreted<E>, QuickWithStroke.Interpreted<E> {
 		@Override
 		QuickBorderedShape.Def<? super E> getDefinition();
 
@@ -68,7 +69,7 @@ public interface QuickBorderedShape extends QuickWithStroke {
 		@Override
 		public abstract E create();
 
-		public abstract class Abstract<E extends QuickBorderedShape> extends QuickWithStroke.Interpreted.Abstract<E>
+		public abstract class Abstract<E extends QuickBorderedShape> extends QuickShape.Interpreted.Abstract<E>
 		implements QuickBorderedShape.Interpreted<E> {
 			protected Abstract(QuickBorderedShape.Def<? super E> definition, ExElement.Interpreted<?> parent) {
 				super(definition, parent);
@@ -92,19 +93,25 @@ public interface QuickBorderedShape extends QuickWithStroke {
 	@Override
 	public QuickBorderedShape copy(ExElement parent);
 
-	public interface QuickBorderedShapeStyle extends QuickWithStroke.QuickStrokeStyle, QuickBorder.QuickBorderStyle {
-		public static interface Def extends QuickWithStroke.QuickStrokeStyle.Def, QuickBorder.QuickBorderStyle.Def {
-			public static class Default extends QuickWithStroke.QuickStrokeStyle.Def.Default implements Def {
+	public interface QuickBorderedShapeStyle extends QuickShapeStyle, QuickStrokeStyle, QuickBorder.QuickBorderStyle {
+		public static interface Def extends QuickShapeStyle.Def, QuickStrokeStyle.Def, QuickBorder.QuickBorderStyle.Def {
+			public static class Default extends QuickShapeStyle.Def.Default implements Def {
+				private final QuickStyleAttributeDef theStrokeDash;
 				private final QuickStyleAttributeDef theBorderColor;
 				private final QuickStyleAttributeDef theBorderThickness;
 
-				protected Default(QuickStyled.QuickInstanceStyle.Def parent, ExElement.Def styledElement,
-					QuickCompiledStyle wrapped) {
+				protected Default(QuickStyled.QuickInstanceStyle.Def parent, ExElement.Def styledElement, QuickCompiledStyle wrapped) {
 					super(parent, styledElement, wrapped);
 					QuickTypeStyle typeStyle = QuickStyled.getTypeStyle(wrapped.getStyleTypes(), getElement(), QuickDrawInterpretation.NAME,
 						QuickDrawInterpretation.VERSION, BORDERED_SHAPE);
+					theStrokeDash = addApplicableAttribute(typeStyle.getAttribute("stroke-dash"));
 					theBorderColor = addApplicableAttribute(typeStyle.getAttribute("border-color"));
 					theBorderThickness = addApplicableAttribute(typeStyle.getAttribute("thickness"));
+				}
+
+				@Override
+				public QuickStyleAttributeDef getStrokeDash() {
+					return theStrokeDash;
 				}
 
 				@Override
@@ -120,20 +127,22 @@ public interface QuickBorderedShape extends QuickWithStroke {
 				@Override
 				public Interpreted interpret(ExElement.Interpreted<?> parentEl, QuickInterpretedStyle parent)
 					throws ExpressoInterpretationException {
-					return new QuickBorderedShapeStyle.Interpreted.Default(this, parentEl,
-						(QuickInstanceStyle.Interpreted) parent, getWrapped().interpret(parentEl, parent));
+					return new QuickBorderedShapeStyle.Interpreted.Default(this, parentEl, (QuickInstanceStyle.Interpreted) parent,
+						getWrapped().interpret(parentEl, parent));
 				}
 			}
 		}
 
-		public static interface Interpreted extends QuickWithStroke.QuickStrokeStyle.Interpreted, QuickBorder.QuickBorderStyle.Interpreted {
+		public static interface Interpreted
+			extends QuickShapeStyle.Interpreted, QuickStrokeStyle.Interpreted, QuickBorder.QuickBorderStyle.Interpreted {
 			@Override
 			Def getDefinition();
 
 			@Override
 			QuickBorderedShapeStyle create(QuickStyled styled);
 
-			public static class Default extends QuickWithStroke.QuickStrokeStyle.Interpreted.Default implements Interpreted {
+			public static class Default extends QuickShapeStyle.Interpreted.Default implements Interpreted {
+				private QuickElementStyleAttribute<StrokeDashing> theStrokeDash;
 				private QuickElementStyleAttribute<Color> theBorderColor;
 				private QuickElementStyleAttribute<Integer> theBorderThickness;
 
@@ -145,6 +154,11 @@ public interface QuickBorderedShape extends QuickWithStroke {
 				@Override
 				public QuickBorderedShapeStyle.Def getDefinition() {
 					return (QuickBorderedShapeStyle.Def) super.getDefinition();
+				}
+
+				@Override
+				public QuickElementStyleAttribute<StrokeDashing> getStrokeDash() {
+					return theStrokeDash;
 				}
 
 				@Override
@@ -163,6 +177,7 @@ public interface QuickBorderedShape extends QuickWithStroke {
 					super.update(element, styleSheet);
 					InterpretedExpressoEnv env = element.getDefaultEnv();
 					QuickInterpretedStyleCache cache = QuickInterpretedStyleCache.get(env);
+					theStrokeDash = get(cache.getAttribute(getDefinition().getStrokeDash(), StrokeDashing.class, env));
 					theBorderColor = get(cache.getAttribute(getDefinition().getBorderColor(), Color.class, env));
 					theBorderThickness = get(cache.getAttribute(getDefinition().getBorderThickness(), Integer.class, env));
 				}
@@ -174,15 +189,21 @@ public interface QuickBorderedShape extends QuickWithStroke {
 			}
 		}
 
-		public static class Default extends QuickWithStroke.QuickStrokeStyle.Default implements QuickBorderedShapeStyle {
+		public static class Default extends QuickShapeStyle.Default implements QuickStrokeStyle, QuickBorderedShapeStyle {
+			private QuickStyleAttribute<StrokeDashing> theStrokeDashAttr;
 			private QuickStyleAttribute<Color> theBorderColorAttr;
 			private QuickStyleAttribute<Integer> theBorderThicknessAttr;
 
+			private ObservableValue<StrokeDashing> theStrokeDash;
 			private ObservableValue<Color> theBorderColor;
 			private ObservableValue<Integer> theBorderThickness;
 
 			protected Default() {
-				super();
+			}
+
+			@Override
+			public ObservableValue<StrokeDashing> getStrokeDash() {
+				return theStrokeDash;
 			}
 
 			@Override
@@ -201,8 +222,11 @@ public interface QuickBorderedShape extends QuickWithStroke {
 
 				QuickBorderedShapeStyle.Interpreted myInterpreted = (QuickBorderedShapeStyle.Interpreted) interpreted;
 
+				theStrokeDashAttr = myInterpreted.getStrokeDash().getAttribute();
 				theBorderColorAttr = myInterpreted.getBorderColor().getAttribute();
 				theBorderThicknessAttr = myInterpreted.getBorderThickness().getAttribute();
+
+				theStrokeDash = getApplicableAttribute(theStrokeDashAttr);
 				theBorderColor = getApplicableAttribute(theBorderColorAttr);
 				theBorderThickness = getApplicableAttribute(theBorderThicknessAttr);
 			}
@@ -211,6 +235,8 @@ public interface QuickBorderedShape extends QuickWithStroke {
 			public QuickBorderedShapeStyle.Default copy(QuickStyled styled) {
 				QuickBorderedShapeStyle.Default copy = (QuickBorderedShapeStyle.Default) super.copy(styled);
 
+				copy.theStrokeDash = copy.getApplicableAttribute(theStrokeDashAttr);
+				copy.theBorderColor = copy.getApplicableAttribute(theBorderColorAttr);
 				copy.theBorderThickness = copy.getApplicableAttribute(theBorderThicknessAttr);
 
 				return copy;

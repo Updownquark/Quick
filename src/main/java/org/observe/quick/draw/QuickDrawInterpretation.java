@@ -3,15 +3,22 @@ package org.observe.quick.draw;
 import java.util.Set;
 
 import org.observe.expresso.qonfig.ExAddOn;
+import org.observe.expresso.qonfig.ExAddOn.Interpreted;
 import org.observe.expresso.qonfig.ExElement;
+import org.observe.expresso.qonfig.ExElement.Def;
 import org.observe.expresso.qonfig.ExpressoQIS;
+import org.observe.quick.QuickMouseListener;
+import org.observe.util.TypeTokens;
 import org.qommons.QommonsUtils;
 import org.qommons.Version;
+import org.qommons.config.QonfigAddOn;
 import org.qommons.config.QonfigInterpretation;
 import org.qommons.config.QonfigInterpreterCore;
 import org.qommons.config.QonfigInterpreterCore.Builder;
 import org.qommons.config.QonfigToolkit;
 import org.qommons.config.SpecialSession;
+
+import com.google.common.reflect.TypeToken;
 
 /** Qonfig interpretation for the Quick-Draw v0.1 toolkit */
 public class QuickDrawInterpretation implements QonfigInterpretation {
@@ -44,6 +51,8 @@ public class QuickDrawInterpretation implements QonfigInterpretation {
 
 	@Override
 	public Builder configureInterpreter(QonfigInterpreterCore.Builder interpreter) {
+		interpreter.createWith("shape-mouse-listener", ExAddOn.Def.class,
+			ExAddOn.<ShapeMouseListener<?, ?>> creator(ShapeMouseListener::new));
 		interpreter.createWith(QuickCanvas.CANVAS, QuickCanvas.Def.class, ExElement.creator(QuickCanvas.Def::new));
 		interpreter.createWith(QuickRotated.ROTATED, QuickRotated.Def.class, ExAddOn.creator(QuickRotated.Def::new));
 		interpreter.createWith(QuickRectangle.RECTANGLE, QuickRectangle.Def.class, ExElement.creator(QuickRectangle.Def::new));
@@ -57,11 +66,40 @@ public class QuickDrawInterpretation implements QonfigInterpretation {
 			ExAddOn.creator(QuickShapeContainer.Def::new));
 		interpreter.createWith(QuickShapeCollection.SHAPE_COLLECTION, QuickShapeCollection.Def.class,
 			ExElement.creator(QuickShapeCollection.Def::new));
+		interpreter.createWith(LightWeightShapeCollection.LIGHT_WEIGHT_SHAPE_COLLECTION, LightWeightShapeCollection.Def.class,
+			ExElement.creator(LightWeightShapeCollection.Def::new));
 		interpreter.createWith(QuickShapeView.SHAPE_VIEW, QuickShapeView.Def.class, ExElement.creator(QuickShapeView.Def::new));
 		interpreter.createWith(Translate.TRANSLATE, Translate.Def.class, ExElement.creator(Translate.Def::new));
 		interpreter.createWith(Scale.SCALE, Scale.Def.class, ExElement.creator(Scale.Def::new));
 		interpreter.createWith(Rotate.ROTATE, Rotate.Def.class, ExElement.creator(Rotate.Def::new));
+		interpreter.createWith(ToCoords.TO_COORDS, ToCoords.Def.class, ExElement.creator(ToCoords.Def::new));
+
+		interpreter.createWith(QuickChart.CHART, QuickChart.Def.class, ExElement.creator(QuickChart.Def::new));
+		interpreter.createWith(QuickChart.ChartAxis.CHART_AXIS, QuickChart.ChartAxis.Def.class,
+			ExElement.creator(QuickChart.ChartAxis.Def::new));
+		interpreter.createWith(QuickChart.ExplicitTicks.EXPLICIT_TICKS, QuickChart.ExplicitTicks.Def.class,
+			ExElement.creator(QuickChart.ExplicitTicks.Def::new));
+		interpreter.createWith(QuickChart.GridLine.GRID_LINE, QuickChart.GridLine.Def.class,
+			ExElement.creator(QuickChart.GridLine.Def::new));
 
 		return interpreter;
 	}
+
+	static class ShapeMouseListener<E extends QuickMouseListener, AO extends ExAddOn<? super E>> extends ExAddOn.Def.Abstract<E, AO>
+	implements QuickMouseListener.MouseCoordType<E, AO> {
+		ShapeMouseListener(QonfigAddOn type, Def<? extends E> element) {
+			super(type, element);
+		}
+
+		@Override
+		public TypeToken<? extends Number> getCoordinateType() {
+			return TypeTokens.get().FLOAT;
+		}
+
+		@Override
+		public <E2 extends E> Interpreted<? super E2, ? extends AO> interpret(ExElement.Interpreted<E2> element) {
+			return null;
+		}
+	}
+
 }

@@ -27,6 +27,12 @@
 				<value name="transformW" type="int" config-path="transform/width" />
 				<value name="transformH" type="int" config-path="transform/height" />
 
+				<value name="coordsActive" type="boolean" config-path="coords/active" default="true" />
+				<value name="coordsX" type="float" config-path="coords/x" />
+				<value name="coordsY" type="float" config-path="coords/y" />
+				<value name="coordsW" type="float" config-path="coords/width" default="1000" />
+				<value name="coordsH" type="float" config-path="coords/height" default="1000" />
+
 				<value name="translateX" type="int" config-path="translate/x" />
 				<value name="translateY" type="int" config-path="translate/y" />
 				<value name="scaleX" type="float" config-path="scale/x" default="1" />
@@ -43,11 +49,13 @@
 
 				<value name="canvasWidth" type="int" />
 				<value name="canvasHeight" type="int" />
+				<value name="drawWidth" type="float">config.coordsActive ? config.coordsW : canvasWidth</value>
+				<value name="drawHeight" type="float">config.coordsActive ? config.coordsH : canvasHeight</value>
 				
-				<value name="newRectX">Math.round(canvasWidth/4.0f)</value>
-				<value name="newRectY">Math.round(canvasHeight/4.0f)</value>
-				<value name="newRectWidth">Math.round(canvasWidth/2.0f)</value>
-				<value name="newRectHeight">Math.round(canvasHeight/2.0f)</value>
+				<value name="newRectX">Math.round(drawWidth/4.0f)</value>
+				<value name="newRectY">Math.round(drawHeight/4.0f)</value>
+				<value name="newRectWidth">Math.round(drawWidth/2.0f)</value>
+				<value name="newRectHeight">Math.round(drawHeight/2.0f)</value>
 
 				<value name="selected" type="ColoredShape" />
 				<list name="toRemove" type="ColoredShape" />
@@ -71,6 +79,22 @@
 		<general-dialog visible="app.globalTransformOpen" title="`Global Tranform`" modal="false"
 			x="config.transformX" y="config.transformY" width="config.transformW" height="config.transformH" >
 			<field-panel>
+				<box field-label="`Base Coords:`" layout="inline-layout" orientation="vertical">
+					<box layout="inline-layout" orientation="horizontal">
+						<label>X:</label>
+						<text-field value="config.coordsX" columns="5" />
+						<spacer width="3" />
+						<label>W:</label>
+						<text-field value="config.coordsW" columns="5" />
+					</box>
+					<box layout="inline-layout" orientation="horizontal">
+						<label>Y:</label>
+						<text-field value="config.coordsY" columns="5" />
+						<spacer width="3" />
+						<label>H:</label>
+						<text-field value="config.coordsH" columns="5" />
+					</box>
+				</box>
 				<box field-label="`Translate:`" layout="inline-layout" orientation="horizontal">
 					<spinner value="config.translateX" columns="5" />
 					<spinner value="config.translateY" columns="5" />
@@ -78,12 +102,10 @@
 				<box field-label="`Scale:`" layout="inline-layout" orientation="horizontal">
 					<model>
 						<transform name="scaleX" source="config.scaleX">
-							<filter-accept source-as="v" test="v&lt;=0.001 ? `Scale is too small` : null" />
-							<filter-accept source-as="v" test="v&lt;=0 ? `Scale must be positive` : null" />
+							<filter-accept source-as="v" test="(v&lt;=0.001 &amp; v>-0.001) ? `Scale is too small` : null" />
 						</transform>
 						<transform name="scaleY" source="config.scaleY">
-							<filter-accept source-as="v" test="v&lt;=0.001 ? `Scale is too small` : null" />
-							<filter-accept source-as="v" test="v&lt;=0 ? `Scale must be positive` : null" />
+							<filter-accept source-as="v" test="(v&lt;=0.001 &amp; v>-0.001) ? `Scale is too small` : null" />
 						</transform>
 					</model>
 					<check-box value="config.scaleTogether">`Together:`</check-box>
@@ -102,7 +124,12 @@
 						config.translateY=0,
 						config.scaleX=1,
 						config.scaleY=1,
-						config.rotateAmount=0}">`Reset`</button>
+						config.rotateAmount=0,
+						config.coordsX=0,
+						config.coordsY=0,
+						config.coordsW=1000,
+						config.coordsH=1000
+					}">`Reset`</button>
 				</box>
 			</field-panel>
 		</general-dialog>
@@ -218,7 +245,6 @@
 			<box layout="inline-layout" orientation="vertical" main-align="justify" cross-align="justify">
 				<field-panel visible="app.selected!=null">
 					<model>
-						<value name="bound">Math.max(app.canvasWidth, app.canvasHeight)</value>
 						<value name="bordered">app.selected instanceof BorderedShape ? (BorderedShape) app.selected : null</value>
 						<value name="positioned">app.selected instanceof PositionedShape ? (PositionedShape) app.selected : null</value>
 						<value name="textShape">app.selected instanceof ColoredText ? (ColoredText) app.selected : null</value>
@@ -251,13 +277,13 @@
 					<box field-label="`Horizontal:`" fill="true" visible="positioned!=null"
 						layout="inline-layout" orientation="horizontal" main-align="justify">
 						<combo value="xAnchor" values="AnchorEnd.values()" />
-						<multi-range-slider values="{x+w}" min="0" max="bound" range-min="x" range-max="w+x"
+						<multi-range-slider values="{x+w}" min="0" max="app.drawWidth" range-min="x" range-max="w+x"
 							requires-source-modification="false" enforce-order="false" />
 					</box>
 					<box field-label="`Vertical:`" fill="true" visible="positioned!=null"
 						layout="inline-layout" orientation="horizontal" main-align="justify">
 						<combo value="yAnchor" values="AnchorEnd.values()" />
-						<multi-range-slider values="{y+h}" min="0" max="bound" range-min="y" range-max="h+y"
+						<multi-range-slider values="{y+h}" min="0" max="app.drawHeight" range-min="y" range-max="h+y"
 							requires-source-modification="false" enforce-order="false" />
 					</box>
 					<slider field-label="`Rotation:`" fill="true" visible="positioned!=null" value="r" min="0" max="360" />
@@ -294,7 +320,7 @@
 							<titled-border title="`Border`" />
 							<box layout="simple-layout">
 								<box width="16" height="16" layout="layer-layout">
-									<style attr="color">bordered.getColor()</style>
+									<style attr="color">bordered.getBorderColor()</style>
 									<on-click>app.editBorderColor=bordered</on-click>
 								</box>
 							</box>
@@ -308,6 +334,9 @@
 		</split>
 		<canvas pref-width="600" pref-height="600" publish-width="app.canvasWidth" publish-height="app.canvasHeight">
 			<shape-view>
+				<to-coords active="config.coordsActive" source-width="app.canvasWidth" source-height="app.canvasHeight"
+					target-min-x="config.coordsX" target-min-y="config.coordsY" target-width="config.coordsW" target-height="config.coordsH" />
+				
 				<translate x="config.translateX" y="config.translateY" />
 				<rotate radians="config.rotateAmount/180*(float) Math.PI"
 					 anchor-x="config.rotateAnchorX-config.translateX" anchor-y="config.rotateAnchorY-config.translateY" />

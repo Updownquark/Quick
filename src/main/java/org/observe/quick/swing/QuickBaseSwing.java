@@ -52,13 +52,13 @@ import org.observe.expresso.ExpressoInterpretationException;
 import org.observe.expresso.ModelInstantiationException;
 import org.observe.expresso.qonfig.ExAddOn;
 import org.observe.expresso.qonfig.ExElement;
+import org.observe.quick.QuickSize;
 import org.observe.quick.Iconized;
 import org.observe.quick.MouseCursor;
 import org.observe.quick.Positionable;
 import org.observe.quick.QuickAbstractWindow;
 import org.observe.quick.QuickDialog;
 import org.observe.quick.QuickInterpretation;
-import org.observe.quick.QuickSize;
 import org.observe.quick.QuickTextWidget;
 import org.observe.quick.QuickWidget;
 import org.observe.quick.Sizeable;
@@ -669,8 +669,8 @@ public class QuickBaseSwing implements QuickInterpretation {
 			QuickSize sz = size.get();
 			if (sz == null)
 				return null;
-			else if (sz.percent == 0.0f)
-				return sz.pixels;
+			else if (!sz.isRelative())
+				return sz.getIPixels();
 			else {
 				System.err.println("min/pref/max size constraints must be absolute: " + sz);
 				return null;
@@ -806,7 +806,8 @@ public class QuickBaseSwing implements QuickInterpretation {
 			.act(evt -> {
 				BiTuple<QuickSize, QuickSize> min = evt.getNewValue();
 				Dimension parentSize = getParent() == null ? new Dimension(0, 0) : getParent().getSize();
-				setSize.accept(new Dimension(min.getValue1().evaluate(parentSize.width), min.getValue2().evaluate(parentSize.height)));
+					setSize.accept(
+						new Dimension(min.getValue1().evaluateInt(parentSize.width), min.getValue2().evaluateInt(parentSize.height)));
 			});
 		}
 	}
@@ -1887,16 +1888,16 @@ public class QuickBaseSwing implements QuickInterpretation {
 				SettableValue<QuickSize> splitPos = quick.getSplitPosition();
 				s.withSplit(size -> {
 					QuickSize sz = splitPos.get();
-					return sz == null ? null : sz.evaluate(size);
+					return sz == null ? null : sz.evaluateInt(size);
 				}, (newSplit, size) -> {
 					if (!quick.isSplitPositionSet())
 						return true;
 					QuickSize sz = splitPos.get();
 					QuickSize newSz;
-					if (sz == null || sz.percent != 0.0f) // Proportion
-						newSz = new QuickSize(newSplit * 100.0f / size, 0);
+					if (sz == null || sz.isRelative()) // Proportion
+						newSz = QuickSize.ofPercent(newSplit * 100.0f / size);
 					else
-						newSz = new QuickSize(0.0f, newSplit);
+						newSz = QuickSize.ofPixels(newSplit);
 					if (splitPos.isAcceptable(newSz) == null) {
 						splitPos.set(newSz, null);
 						return true;

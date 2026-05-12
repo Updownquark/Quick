@@ -281,9 +281,9 @@ public abstract class Positionable extends ExAddOn.Abstract<ExElement> {
 	/** @param element The element this positionable applies to */
 	protected Positionable(ExElement element) {
 		super(element);
-		theLeading = SettableValue.<SettableValue<QuickSize>> build().build();
-		theCenter = SettableValue.<SettableValue<QuickSize>> build().build();
-		theTrailing = SettableValue.<SettableValue<QuickSize>> build().build();
+		theLeading = SettableValue.create();
+		theCenter = SettableValue.create();
+		theTrailing = SettableValue.create();
 	}
 
 	/** @return The position for the leading edge (top or left) of the widget */
@@ -323,7 +323,7 @@ public abstract class Positionable extends ExAddOn.Abstract<ExElement> {
 	protected Positionable clone() {
 		Positionable copy = (Positionable) super.clone();
 
-		copy.theLeading = SettableValue.<SettableValue<QuickSize>> build().build();
+		copy.theLeading = SettableValue.create();
 		copy.theCenter = SettableValue.<SettableValue<QuickSize>> build().build();
 		copy.theTrailing = SettableValue.<SettableValue<QuickSize>> build().build();
 

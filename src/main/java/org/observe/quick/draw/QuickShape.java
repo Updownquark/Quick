@@ -63,6 +63,10 @@ public interface QuickShape extends QuickWithBackground, QuickShapePublisher {
 		@QonfigAttributeGetter("repaint")
 		CompiledExpression getRepaint();
 
+		/** @return A string identifier which, if non-null, will cause this shape to print information about where it is being drawn */
+		@QonfigAttributeGetter("debug-print")
+		CompiledExpression getDebugPrint();
+
 		/** @return All event listeners configured for this shape */
 		@QonfigChildGetter("event-listener")
 		List<QuickEventListener.Def<?>> getEventListeners();
@@ -74,6 +78,7 @@ public interface QuickShape extends QuickWithBackground, QuickShapePublisher {
 			private CompiledExpression theTooltip;
 			private CompiledExpression isVisible;
 			private CompiledExpression theRepaint;
+			private CompiledExpression theDebugPrint;
 
 			private ModelComponentId theHoveredValue;
 			private ModelComponentId theFocusedValue;
@@ -112,6 +117,11 @@ public interface QuickShape extends QuickWithBackground, QuickShapePublisher {
 			}
 
 			@Override
+			public CompiledExpression getDebugPrint() {
+				return theDebugPrint;
+			}
+
+			@Override
 			public ModelComponentId getHoveredValue() {
 				return theHoveredValue;
 			}
@@ -142,6 +152,7 @@ public interface QuickShape extends QuickWithBackground, QuickShapePublisher {
 				theTooltip = getAttributeExpression("tooltip", session);
 				isVisible = getAttributeExpression("visible", session);
 				theRepaint = getAttributeExpression("repaint", session);
+				theDebugPrint = getAttributeExpression("debug-print", session);
 				ExWithElementModel.Def elModels = getAddOn(ExWithElementModel.Def.class);
 				theHoveredValue = elModels.getElementValueModelId("hovered");
 				theFocusedValue = elModels.getElementValueModelId("focused");
@@ -174,6 +185,9 @@ public interface QuickShape extends QuickWithBackground, QuickShapePublisher {
 		/** @return An event that causes this shape to repaint itself */
 		InterpretedValueSynth<Observable<?>, Observable<?>> getRepaint();
 
+		/** @return A string identifier which, if non-null, will cause this shape to print information about where it is being drawn */
+		InterpretedValueSynth<SettableValue<?>, SettableValue<String>> isDebugPrint();
+
 		/** @return All event listeners configured for this shape */
 		List<QuickEventListener.Interpreted<?>> getEventListeners();
 
@@ -185,6 +199,7 @@ public interface QuickShape extends QuickWithBackground, QuickShapePublisher {
 			private InterpretedValueSynth<SettableValue<?>, SettableValue<String>> theTooltip;
 			private InterpretedValueSynth<SettableValue<?>, SettableValue<Boolean>> isVisible;
 			private InterpretedValueSynth<Observable<?>, Observable<?>> theRepaint;
+			private InterpretedValueSynth<SettableValue<?>, SettableValue<String>> isDebugPrint;
 			private final List<QuickEventListener.Interpreted<?>> theEventListeners;
 
 			protected Abstract(QuickShape.Def<? super E> definition, ExElement.Interpreted<?> parent) {
@@ -218,6 +233,11 @@ public interface QuickShape extends QuickWithBackground, QuickShapePublisher {
 			}
 
 			@Override
+			public InterpretedValueSynth<SettableValue<?>, SettableValue<String>> isDebugPrint() {
+				return isDebugPrint;
+			}
+
+			@Override
 			public List<QuickEventListener.Interpreted<?>> getEventListeners() {
 				return Collections.unmodifiableList(theEventListeners);
 			}
@@ -228,6 +248,7 @@ public interface QuickShape extends QuickWithBackground, QuickShapePublisher {
 				theTooltip = interpret(getDefinition().getTooltip(), ModelTypes.Value.STRING);
 				isVisible = interpret(getDefinition().isVisible(), ModelTypes.Value.BOOLEAN);
 				theRepaint = interpret(getDefinition().getRepaint(), ModelTypes.Event.any());
+				isDebugPrint = interpret(getDefinition().getDebugPrint(), ModelTypes.Value.STRING);
 
 				syncChildren(getDefinition().getEventListeners(), theEventListeners, def -> def.interpret(this),
 					QuickEventListener.Interpreted::updateListener);
@@ -255,6 +276,9 @@ public interface QuickShape extends QuickWithBackground, QuickShapePublisher {
 	/** @return An event that causes this shape to repaint itself */
 	Observable<?> getRepaint();
 
+	/** @return A string identifier which, if non-null, will cause this shape to print information about where it is being drawn */
+	SettableValue<String> getDebugPrint();
+
 	/** @return All event listeners for this shape */
 	ObservableCollection<QuickEventListener> getEventListeners();
 
@@ -270,6 +294,7 @@ public interface QuickShape extends QuickWithBackground, QuickShapePublisher {
 		private ModelValueInstantiator<SettableValue<String>> theTooltipInstantiator;
 		private ModelValueInstantiator<SettableValue<Boolean>> theVisibleInstantiator;
 		private ModelValueInstantiator<Observable<?>> theRepaintInstantiator;
+		private ModelValueInstantiator<SettableValue<String>> theDebugPrintInstantiator;
 		private ModelComponentId theHoveredValue;
 		private ModelComponentId theFocusedValue;
 		private ModelComponentId thePressedValue;
@@ -278,6 +303,7 @@ public interface QuickShape extends QuickWithBackground, QuickShapePublisher {
 		private SettableValue<SettableValue<String>> theTooltip;
 		private SettableValue<SettableValue<Boolean>> isVisible;
 		private SettableValue<Observable<?>> theRepaint;
+		private SettableValue<SettableValue<String>> theDebugPrint;
 
 		private ObservableCollection<QuickEventListener> theEventListeners;
 
@@ -287,6 +313,7 @@ public interface QuickShape extends QuickWithBackground, QuickShapePublisher {
 			theTooltip = SettableValue.create();
 			isVisible = SettableValue.create();
 			theRepaint = SettableValue.create();
+			theDebugPrint = SettableValue.create();
 			theEventListeners = ObservableCollection.create();
 
 			isHovered = SettableValue.create();
@@ -313,6 +340,11 @@ public interface QuickShape extends QuickWithBackground, QuickShapePublisher {
 		@Override
 		public Observable<?> getRepaint() {
 			return ObservableValue.flattenObservableValue(theRepaint);
+		}
+
+		@Override
+		public SettableValue<String> getDebugPrint() {
+			return SettableValue.flatten(theDebugPrint);
 		}
 
 		@Override
@@ -362,6 +394,7 @@ public interface QuickShape extends QuickWithBackground, QuickShapePublisher {
 			theTooltipInstantiator = myInterpreted.getTooltip() == null ? null : myInterpreted.getTooltip().instantiate();
 			theVisibleInstantiator = myInterpreted.isVisible() == null ? null : myInterpreted.isVisible().instantiate();
 			theRepaintInstantiator = myInterpreted.getRepaint() == null ? null : myInterpreted.getRepaint().instantiate();
+			theDebugPrintInstantiator = myInterpreted.isDebugPrint() == null ? null : myInterpreted.isDebugPrint().instantiate();
 
 			syncChildren(myInterpreted.getEventListeners(), theEventListeners, el -> el.create(), QuickEventListener::update);
 		}
@@ -376,6 +409,8 @@ public interface QuickShape extends QuickWithBackground, QuickShapePublisher {
 				theVisibleInstantiator.instantiate();
 			if (theRepaintInstantiator != null)
 				theRepaintInstantiator.instantiate();
+			if (theDebugPrintInstantiator != null)
+				theDebugPrintInstantiator.instantiate();
 
 			for (QuickEventListener listener : theEventListeners)
 				listener.instantiated();
@@ -393,6 +428,7 @@ public interface QuickShape extends QuickWithBackground, QuickShapePublisher {
 			theTooltip.set(theTooltipInstantiator == null ? null : theTooltipInstantiator.get(myModels), null);
 			isVisible.set(theVisibleInstantiator == null ? null : theVisibleInstantiator.get(myModels), null);
 			theRepaint.set(theRepaintInstantiator == null ? null : theRepaintInstantiator.get(myModels), null);
+			theDebugPrint.set(theDebugPrintInstantiator == null ? null : theDebugPrintInstantiator.get(myModels), null);
 
 			for (QuickEventListener listener : theEventListeners)
 				listener.instantiate(myModels);
@@ -407,6 +443,7 @@ public interface QuickShape extends QuickWithBackground, QuickShapePublisher {
 			copy.theTooltip = SettableValue.create();
 			copy.isVisible = SettableValue.create();
 			copy.theRepaint = SettableValue.create();
+			copy.theDebugPrint = SettableValue.create();
 			copy.theEventListeners = ObservableCollection.create();
 
 			copy.isHovered = SettableValue.create();

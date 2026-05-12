@@ -621,7 +621,7 @@ class QuickSwingTablePopulation {
 		QuickSwingTableColumn(TriConsumer<R2, R, QuickWidget> update, Function<R2, R> reverse, QuickWidget quickParent,
 			QuickTableColumn<R, C> column, boolean virtual, QuickSwingColumnSet.TabularContext<R> ctx,
 			Supplier<? extends ComponentEditor<?, ?>> parent, Map<Object, QuickSwingPopulator<QuickWidget>> swingRenderers,
-			Map<Object, QuickSwingPopulator<QuickWidget>> swingEditors, Observable<?> until) throws ModelInstantiationException {
+				Map<Object, QuickSwingPopulator<QuickWidget>> swingEditors, Observable<?> until) throws ModelInstantiationException {
 			super(update, reverse, quickParent, column.getValue(), column.getRenderers(), ctx, parent, swingRenderers, virtual);
 			theColumn = column;
 
@@ -921,8 +921,8 @@ class QuickSwingTablePopulation {
 						mouseL.isAltPressed().set(e.isAltDown(), e);
 						mouseL.isCtrlPressed().set(e.isControlDown(), e);
 						mouseL.isShiftPressed().set(e.isShiftDown(), e);
-						mouseL.getEventX().set(e.getX(), e);
-						mouseL.getEventY().set(e.getY(), e);
+						((SettableValue<Integer>) mouseL.getEventX()).set(e.getX(), e);
+						((SettableValue<Integer>) mouseL.getEventY()).set(e.getY(), e);
 						mouseL.getEventButton().set(eventButton, e);
 						if (!mouseL.testFilter())
 							continue;
@@ -955,8 +955,8 @@ class QuickSwingTablePopulation {
 						mouseL.isAltPressed().set(e.isAltDown(), e);
 						mouseL.isCtrlPressed().set(e.isControlDown(), e);
 						mouseL.isShiftPressed().set(e.isShiftDown(), e);
-						mouseL.getEventX().set(e.getX(), e);
-						mouseL.getEventY().set(e.getY(), e);
+						((SettableValue<Integer>) mouseL.getEventX()).set(e.getX(), e);
+						((SettableValue<Integer>) mouseL.getEventY()).set(e.getY(), e);
 						mouseL.getEventButton().set(eventButton, e);
 						if (!mouseL.testFilter())
 							continue;
@@ -989,8 +989,8 @@ class QuickSwingTablePopulation {
 						mouseL.isAltPressed().set(e.isAltDown(), e);
 						mouseL.isCtrlPressed().set(e.isControlDown(), e);
 						mouseL.isShiftPressed().set(e.isShiftDown(), e);
-						mouseL.getEventX().set(e.getX(), e);
-						mouseL.getEventY().set(e.getY(), e);
+						((SettableValue<Integer>) mouseL.getEventX()).set(e.getX(), e);
+						((SettableValue<Integer>) mouseL.getEventY()).set(e.getY(), e);
 						mouseL.getEventButton().set(eventButton, e);
 						if (!mouseL.testFilter())
 							continue;
@@ -1020,8 +1020,8 @@ class QuickSwingTablePopulation {
 						mouseL.isAltPressed().set(e.isAltDown(), e);
 						mouseL.isCtrlPressed().set(e.isControlDown(), e);
 						mouseL.isShiftPressed().set(e.isShiftDown(), e);
-						mouseL.getEventX().set(e.getX(), e);
-						mouseL.getEventY().set(e.getY(), e);
+						((SettableValue<Integer>) mouseL.getEventX()).set(e.getX(), e);
+						((SettableValue<Integer>) mouseL.getEventY()).set(e.getY(), e);
 						if (!mouseL.testFilter())
 							continue;
 						mouseL.getAction().act(e);
@@ -1050,8 +1050,8 @@ class QuickSwingTablePopulation {
 						mouseL.isAltPressed().set(e.isAltDown(), e);
 						mouseL.isCtrlPressed().set(e.isControlDown(), e);
 						mouseL.isShiftPressed().set(e.isShiftDown(), e);
-						mouseL.getEventX().set(e.getX(), e);
-						mouseL.getEventY().set(e.getY(), e);
+						((SettableValue<Integer>) mouseL.getEventX()).set(e.getX(), e);
+						((SettableValue<Integer>) mouseL.getEventY()).set(e.getY(), e);
 						if (!mouseL.testFilter())
 							continue;
 						mouseL.getAction().act(e);
@@ -1080,8 +1080,8 @@ class QuickSwingTablePopulation {
 						mouseL.isAltPressed().set(e.isAltDown(), e);
 						mouseL.isCtrlPressed().set(e.isControlDown(), e);
 						mouseL.isShiftPressed().set(e.isShiftDown(), e);
-						mouseL.getEventX().set(e.getX(), e);
-						mouseL.getEventY().set(e.getY(), e);
+						((SettableValue<Integer>) mouseL.getEventX()).set(e.getX(), e);
+						((SettableValue<Integer>) mouseL.getEventY()).set(e.getY(), e);
 						if (!mouseL.testFilter())
 							continue;
 						mouseL.getAction().act(e);

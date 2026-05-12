@@ -55,8 +55,8 @@ public class Scale extends ExElement.Abstract implements TransformOp {
 	}
 
 	public static class Interpreted extends ExElement.Interpreted.Abstract<Scale> implements TransformOp.Interpreted<Scale> {
-		private InterpretedValueSynth<SettableValue<?>, SettableValue<Float>> theX;
-		private InterpretedValueSynth<SettableValue<?>, SettableValue<Float>> theY;
+		private InterpretedValueSynth<SettableValue<?>, SettableValue<Double>> theX;
+		private InterpretedValueSynth<SettableValue<?>, SettableValue<Double>> theY;
 
 		Interpreted(Def definition, ExElement.Interpreted<?> parent) {
 			super(definition, parent);
@@ -67,11 +67,11 @@ public class Scale extends ExElement.Abstract implements TransformOp {
 			return (Def) super.getDefinition();
 		}
 
-		public InterpretedValueSynth<SettableValue<?>, SettableValue<Float>> getX() {
+		public InterpretedValueSynth<SettableValue<?>, SettableValue<Double>> getX() {
 			return theX;
 		}
 
-		public InterpretedValueSynth<SettableValue<?>, SettableValue<Float>> getY() {
+		public InterpretedValueSynth<SettableValue<?>, SettableValue<Double>> getY() {
 			return theY;
 		}
 
@@ -84,8 +84,8 @@ public class Scale extends ExElement.Abstract implements TransformOp {
 		protected void doUpdate() throws ExpressoInterpretationException {
 			super.doUpdate();
 
-			theX = interpret(getDefinition().getX(), ModelTypes.Value.forType(float.class));
-			theY = interpret(getDefinition().getY(), ModelTypes.Value.forType(float.class));
+			theX = interpret(getDefinition().getX(), ModelTypes.Value.forType(double.class));
+			theY = interpret(getDefinition().getY(), ModelTypes.Value.forType(double.class));
 		}
 
 		@Override
@@ -94,11 +94,11 @@ public class Scale extends ExElement.Abstract implements TransformOp {
 		}
 	}
 
-	private ModelValueInstantiator<SettableValue<Float>> theXInstantiator;
-	private ModelValueInstantiator<SettableValue<Float>> theYInstantiator;
+	private ModelValueInstantiator<SettableValue<Double>> theXInstantiator;
+	private ModelValueInstantiator<SettableValue<Double>> theYInstantiator;
 
-	private SettableValue<SettableValue<Float>> theX;
-	private SettableValue<SettableValue<Float>> theY;
+	private SettableValue<SettableValue<Double>> theX;
+	private SettableValue<SettableValue<Double>> theY;
 
 	Scale(Object id) {
 		super(id);
@@ -107,11 +107,11 @@ public class Scale extends ExElement.Abstract implements TransformOp {
 		theY = SettableValue.create();
 	}
 
-	public SettableValue<Float> getX() {
+	public SettableValue<Double> getX() {
 		return SettableValue.flatten(theX);
 	}
 
-	public SettableValue<Float> getY() {
+	public SettableValue<Double> getY() {
 		return SettableValue.flatten(theY);
 	}
 
