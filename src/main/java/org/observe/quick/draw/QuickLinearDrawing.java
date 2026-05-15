@@ -29,7 +29,9 @@ public interface QuickLinearDrawing extends QuickWithStroke {
 		QuickLineDrawingStyle.Def wrap(QuickInstanceStyle.Def parentStyle, QuickCompiledStyle style);
 
 		@Override
-		QuickLineDrawingStyle.Def getStyle();
+		default QuickLineDrawingStyle.Def getStyle() {
+			return (QuickLineDrawingStyle.Def) QuickWithStroke.Def.super.getStyle();
+		}
 
 		@Override
 		Interpreted<? extends E> interpret(ExElement.Interpreted<?> parent);
@@ -40,14 +42,18 @@ public interface QuickLinearDrawing extends QuickWithStroke {
 		QuickLinearDrawing.Def<? super E> getDefinition();
 
 		@Override
-		public QuickLineDrawingStyle.Interpreted getStyle();
+		default QuickLineDrawingStyle.Interpreted getStyle() {
+			return (QuickLineDrawingStyle.Interpreted) QuickWithStroke.Interpreted.super.getStyle();
+		}
 
 		@Override
 		public abstract E create();
 	}
 
 	@Override
-	public QuickLineDrawingStyle getStyle();
+	default QuickLineDrawingStyle getStyle() {
+		return (QuickLineDrawingStyle) QuickWithStroke.super.getStyle();
+	}
 
 	@Override
 	public QuickLinearDrawing copy(ExElement parent);

@@ -9,7 +9,7 @@
 		</add-on>
 		<?DOC Just modifies the type of the x and y coordinate values to be floating-point types instead of ints?>
 		<add-on name="shape-mouse-listener" requires="mouse-listener" />
-		<add-on name="shape" abstract="true" inherits="shape-publisher,with-background">
+		<add-on name="shape" abstract="true" inherits="with-background">
 			<styles>
 				<?DOC A value between 0 and 1 determining how this shape is drawn to the canvas.<br>
 					0 indicates that this shape should not be drawn at all to the canvas,<br>
@@ -44,12 +44,20 @@
 		</add-on>
 		<add-on name="linear-shape" abstract="true" inherits="shape,linear-drawing" />
 		<add-on name="bordered-shape" abstract="true" inherits="shape,with-border,with-stroke" />
-		<add-on name="simple-shape" abstract="true" inherits="bordered-shape,v-positionable,h-positionable,rotated">
+		<add-on name="simple-shape" abstract="true" inherits="bordered-shape,shape-publisher,v-positionable,h-positionable,rotated">
 			<attribute name="width" type="expression" specify="optional" />
 			<attribute name="height" type="expression" specify="optional" />
 		</add-on>
-		<add-on name="root-text" requires="text" inherits="v-positionable,h-positionable,rotated" />
-		<add-on name="chart-tick-scheme" />
+		<add-on name="root-text" requires="text" inherits="shape-publisher,v-positionable,h-positionable,rotated" />
+		<add-on name="chart-tick-scheme" abstract="true" />
+		<add-on name="chart-tick-label" abstract="true" inherits="rotated">
+			<?DOC Where the tick label should be aligned along the axis:<br><ul>
+				<li>leading (&lt;0, above or to the left of) the tick value,</li>
+				<li>centered (0) on the tick value,</li>
+				<li>or trailing(>0, below or to the right of) the tick value</li>
+				</ul>?>
+			<attribute name="alignment" type="expression" default="0" />
+		</add-on>
 	</add-ons>
 	
 	<elements>
@@ -76,7 +84,7 @@
 		<element-def name="light-weight-shape-collection" extends="shape-collection" />
 		<element-def name="rectangle" inherits="simple-shape,shape-container" />
 		<element-def name="ellipse" inherits="simple-shape" />
-		<element-def name="polygon" inherits="bordered-shape">
+		<element-def name="polygon" inherits="bordered-shape,shape-publisher">
 			<element-model>
 				<?DOC The value for the current vertex?>
 				<value name-attribute="active-vertex-as" priority="100" />
@@ -99,12 +107,12 @@
 		<?DOC A line segment or set of line segments between a constant number of points.
 			The coordinates of each of the points may change, but the number is constant.
 			All segments of the line have the same thickness, opacity, and color.?>
-		<element-def name="line" inherits="linear-shape">
+		<element-def name="line" inherits="linear-shape,shape-publisher">
 			<child-def name="point" type="point" min="2" />
 		</element-def>
 		<?DOC A line segment or set of line segments between a variable number of points.
 			The segments may be styled individually, and each segment's styling may vary along its length.?>
-		<element-def name="flex-line" inherits="linear-shape">
+		<element-def name="flex-line" inherits="linear-shape,shape-publisher">
 			<element-model>
 				<?DOC The value for the current point?>
 				<value name-attribute="active-point-as" priority="100" />
@@ -133,7 +141,7 @@
 				If this attribute is not specified, the segment division is implementation-dependent.?>
 			<attribute name="style-variance-distance" type="expression" specify="optional" />
 		</element-def>
-		<element-def name="arc" inherits="linear-shape,rotated">
+		<element-def name="arc" inherits="linear-shape,rotated,shape-publisher">
 			<child-def name="center" type="point" />
 			<attribute name="major-radius" type="expression" />
 			<attribute name="minor-radius" type="expression" />
@@ -142,7 +150,7 @@
 		</element-def>
 		<?DOC For a parameter whose value steps between 0 and 1, this is the curve connecting the points from x and y expressions applied
 			to the parameter at each step?>
-		<element-def name="parameteric-curve" inherits="linear-shape">
+		<element-def name="parameteric-curve" inherits="linear-shape,shape-publisher">
 			<element-model>
 				<value name-attribute="parameter-as" priority="100" />
 			</element-model>
@@ -153,7 +161,7 @@
 		</element-def>
 		<?DOC For a parameter whose value steps between 0 and 1, this is the shape connecting the points from 2 sets of x and y expressions
 			applied to the parameter at each step?>
-		<element-def name="parameteric-shape" inherits="bordered-shape">
+		<element-def name="parameteric-shape" inherits="bordered-shape,shape-publisher">
 			<element-model>
 				<value name-attribute="parameter-as" priority="100" />
 			</element-model>
@@ -199,26 +207,45 @@
 			<child-def name="h-axis" type="chart-axis" min="0" />
 			<child-def name="v-axis" type="chart-axis" min="0" />
 		</element-def>
-		<element-def name="chart-axis" inherits="linear-drawing,with-element-model">
+		<element-def name="chart-axis" inherits="linear-shape">
 			<element-model>
-				<value name-attribute="tick-value-name" priority="100" />
+				<value name-attribute="tick-value-as" type="double" priority="100" />
+				<value name-attribute="tick-index-as" type="int" priority="100" />
 			</element-model>
-			<attribute name="tick-value-name" type="identifier" />
-			<attribute name="leading" type="expression" />
+			<attribute name="tick-value-as" type="identifier" specify="optional" />
+			<attribute name="tick-index-as" type="identifier" specify="optional" />
+			<attribute name="leading" type="expression" specify="optional" />
+			<?DOC The value for the left or bottom edge of the chart. This may or may not be &lt;=max?>
 			<attribute name="min" type="expression" />
+			<?DOC The value for the right or top edge of the chart. This may or may not be >=min?>
 			<attribute name="max" type="expression" />
-			<attribute name="length" type="expression" />
+			<?DOC A scheme to generate the tick values given the minimum and maximum values for the axis?>
 			<child-def name="scheme" type="chart-tick-scheme" />
-			<child-def name="label" type="text" min="0" />
-			<child-def name="grid-line" type="grid-line" min="0" />
+			<?DOC A label for each tick mark?>
+			<child-def name="label" type="text" inherits="chart-tick-label" min="0" />
+			<?DOC The lines (one for each tick) in the label section of the chart next to each tick.?>
+			<child-def name="tick-line" type="tick-line" min="0" />
 		</element-def>
-		<element-def name="grid-line" inherits="linear-shape">
-			<attribute name="on-top" type="expression" default="true" />
+		<element-def name="tick-line" inherits="linear-shape">
+			<?DOC The distance from the edge of the chart into the label section that the tick will be drawn?>
+			<attribute name="length" type="expression" />
+		</element-def>
+		<?DOC A content type for a <chart> that draws the grid lines for each tick.
+			This allows some content shapes to be drawn under the grid and others to be drawn on top of them.?>
+		<element-def name="grid-lines" inherits="linear-shape,shape-publisher">
+			<element-model>
+				<value name-attribute="tick-value-as" type="double" priority="100" />
+				<value name-attribute="tick-index-as" type="int" priority="100" />
+				<value name-attribute="vertical-line-as" type="boolean" priority="100" />
+			</element-model>
+			<attribute name="tick-value-as" type="identifier" specify="optional" />
+			<attribute name="tick-index-as" type="identifier" specify="optional" />
+			<attribute name="vertical-line-as" type="identifier" specify="optional" />
 		</element-def>
 		<element-def name="explicit-ticks" inherits="chart-tick-scheme">
 			<attribute name="ticks" type="expression" />
 		</element-def>
-		<element-def name="default-number-ticks" inherits="chart-tick-scheme" />
+		<element-def name="default-ticks" inherits="chart-tick-scheme" />
 	</elements>
 
 	<auto-inheritance>

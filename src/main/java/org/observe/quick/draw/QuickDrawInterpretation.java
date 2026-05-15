@@ -79,8 +79,12 @@ public class QuickDrawInterpretation implements QonfigInterpretation {
 			ExElement.creator(QuickChart.ChartAxis.Def::new));
 		interpreter.createWith(QuickChart.ExplicitTicks.EXPLICIT_TICKS, QuickChart.ExplicitTicks.Def.class,
 			ExElement.creator(QuickChart.ExplicitTicks.Def::new));
-		interpreter.createWith(QuickChart.GridLine.GRID_LINE, QuickChart.GridLine.Def.class,
-			ExElement.creator(QuickChart.GridLine.Def::new));
+		interpreter.createWith(QuickChart.DefaultTicks.DEFAULT_TICKS, QuickChart.DefaultTicks.Def.class,
+			ExElement.creator(QuickChart.DefaultTicks.Def::new));
+		interpreter.createWith(QuickChart.TickLine.TICK_LINE, QuickChart.TickLine.Def.class,
+			ExElement.creator(QuickChart.TickLine.Def::new));
+		interpreter.createWith(QuickChart.GridLines.GRID_LINES, QuickChart.GridLines.Def.class,
+			ExElement.creator(QuickChart.GridLines.Def::new));
 
 		return interpreter;
 	}

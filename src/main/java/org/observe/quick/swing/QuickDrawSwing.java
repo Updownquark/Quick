@@ -7,6 +7,7 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Point;
 import java.awt.Rectangle;
+import java.awt.Shape;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 import java.awt.event.InputEvent;
@@ -21,13 +22,13 @@ import java.awt.geom.NoninvertibleTransformException;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
@@ -61,7 +62,6 @@ import org.observe.quick.draw.QuickBorderedShape;
 import org.observe.quick.draw.QuickCanvas;
 import org.observe.quick.draw.QuickChart;
 import org.observe.quick.draw.QuickChart.ChartAxis;
-import org.observe.quick.draw.QuickChart.ChartAxis.Interpreted;
 import org.observe.quick.draw.QuickDrawText;
 import org.observe.quick.draw.QuickEllipse;
 import org.observe.quick.draw.QuickFlexLine;
@@ -88,9 +88,9 @@ import org.observe.util.swing.PanelPopulation.ComponentEditor;
 import org.observe.util.swing.PanelPopulation.PanelPopulator;
 import org.qommons.BiTuple;
 import org.qommons.Colors;
-import org.qommons.FloatList;
 import org.qommons.QommonsUtils;
 import org.qommons.StringUtils;
+import org.qommons.Transaction;
 import org.qommons.Transformer;
 import org.qommons.collect.BetterHashSet;
 import org.qommons.collect.BetterSet;
@@ -143,8 +143,18 @@ public class QuickDrawSwing implements QuickInterpretation {
 		/** @param source The transform to modify with this operation */
 		void transform(AffineTransform source);
 
+		void transformBounds(Point2D.Float bounds);
+
 		/** @return Any change sources in this transform */
 		Observable<?> update();
+	}
+
+	public interface QuickDrawSimpleTransform extends QuickDrawTransform {
+		default boolean isSimple() {
+			return true;
+		}
+
+		QuickDrawScreen transform(QuickDrawScreen screen);
 	}
 
 	/** A qualitative representation of opacity */
@@ -165,6 +175,438 @@ public class QuickDrawSwing implements QuickInterpretation {
 		}
 	}
 
+	public interface QuickDrawScreen extends Transaction {
+		Graphics2D gfx();
+
+		boolean isTransformed();
+
+		Point transformToRoot(float x, float y);
+
+		float getWidth();
+
+		float getHeight();
+
+		int containsX(float x);
+
+		int containsY(float y);
+
+		float transformX(float x);
+
+		float transformY(float y);
+
+		Point tx(float x, float y);
+
+		int[][] tx(float[][] points);
+
+		QuickDrawScreen transform(float translateX, float translateY, float scaleX, float scaleY);
+
+		QuickDrawScreen subScreen(float x, float y, float width, float height);
+
+		Graphics2D getTransformedGraphics();
+	}
+
+	public static abstract class AbstractScreen implements QuickDrawScreen {
+		private final Graphics2D theGraphics;
+		private final float theWidth;
+		private final float theHeight;
+		private final Transaction onClose;
+		protected final Point thePoint;
+
+		protected AbstractScreen(Graphics2D graphics, float width, float height, Transaction onClose) {
+			theGraphics = graphics;
+			theWidth = width;
+			theHeight = height;
+			this.onClose = onClose;
+			thePoint = new Point();
+		}
+
+		@Override
+		public Point transformToRoot(float x, float y) {
+			AffineTransform txform = gfx().getTransform();
+			if (txform == null || txform.isIdentity()) {
+				thePoint.x = (int) x;
+				thePoint.y = (int) y;
+			} else {
+				Point2D.Double pt = new Point2D.Double();
+				pt.setLocation(x, y);
+				txform.transform(pt, pt);
+				thePoint.x = (int) pt.x;
+				thePoint.y = (int) pt.y;
+			}
+			return thePoint;
+		}
+
+		@Override
+		public void close() {
+			onClose.close();
+		}
+
+		@Override
+		public Graphics2D gfx() {
+			return theGraphics;
+		}
+
+		@Override
+		public float getWidth() {
+			return theWidth;
+		}
+
+		@Override
+		public float getHeight() {
+			return theHeight;
+		}
+
+		@Override
+		public Point tx(float x, float y) {
+			thePoint.x = (int) transformX(x);
+			thePoint.y = (int) transformY(y);
+			return thePoint;
+		}
+
+		@Override
+		public int[][] tx(float[][] points) {
+			int[][] transformed = new int[2][points[0].length];
+			for (int p = 0; p < points[0].length; p++) {
+				transformed[0][p] = (int) transformX(points[0][p]);
+				transformed[1][p] = (int) transformY(points[1][p]);
+			}
+			return transformed;
+		}
+	}
+
+	public static class SimpleScreen extends AbstractScreen {
+		public SimpleScreen(Graphics2D graphics, float width, float height, Transaction onClose) {
+			super(graphics, width, height, onClose);
+		}
+
+		@Override
+		public boolean isTransformed() {
+			AffineTransform txform = gfx().getTransform();
+			return txform != null && !txform.isIdentity();
+		}
+
+		@Override
+		public Point transformToRoot(float x, float y) {
+			AffineTransform txform = gfx().getTransform();
+			if (txform == null || txform.isIdentity()) {
+				thePoint.x = (int) x;
+				thePoint.y = (int) y;
+			} else {
+				Point2D.Double pt = new Point2D.Double();
+				pt.setLocation(x, y);
+				txform.transform(pt, pt);
+				thePoint.x = (int) pt.x;
+				thePoint.y = (int) pt.y;
+			}
+			return thePoint;
+		}
+
+		@Override
+		public int containsX(float x) {
+			if (x < 0)
+				return -1;
+			else if (x >= getWidth())
+				return 1;
+			else
+				return 0;
+		}
+
+		@Override
+		public int containsY(float y) {
+			if (y < 0)
+				return -1;
+			else if (y >= getHeight())
+				return 1;
+			else
+				return 0;
+		}
+
+		@Override
+		public float transformX(float x) {
+			return x;
+		}
+
+		@Override
+		public float transformY(float y) {
+			return y;
+		}
+
+		@Override
+		public QuickDrawScreen transform(float translateX, float translateY, float scaleX, float scaleY) {
+			if (scaleX == 1.0f && scaleY == 1.0f) {
+				if (translateX == 0 && translateY == 0)
+					return this;
+				else
+					return new TranslatedScreen(gfx(), getWidth(), getHeight(), translateX, translateY, Transaction.NONE);
+			} else
+				return new ScaledScreen(gfx(), getWidth() / Math.abs(scaleX), getHeight() / Math.abs(scaleY), translateX, translateY,
+					scaleX, scaleY, Transaction.NONE);
+		}
+
+		@Override
+		public QuickDrawScreen subScreen(float x, float y, float width, float height) {
+			Shape prevClip = gfx().getClip();
+			if (x + width > getWidth())
+				width = getWidth() - x;
+			if (y + height > getHeight())
+				height = getHeight() - y;
+			if (width < 0 || height < 0)
+				return null;
+			gfx().setClip((int) x, (int) y, (int) width, (int) height);
+			gfx().translate(x, y);
+			return new SimpleScreen(gfx(), width, height, () -> {
+				gfx().translate(-x, -y);
+				gfx().setClip(prevClip);
+			});
+		}
+
+		@Override
+		public Graphics2D getTransformedGraphics() {
+			return gfx();
+		}
+
+		@Override
+		public String toString() {
+			return "SimpleScreen[" + getWidth() + "x" + getHeight() + "]";
+		}
+	}
+
+	static class TranslatedScreen extends AbstractScreen {
+		private final float theOffsetX;
+		private final float theOffsetY;
+
+		public TranslatedScreen(Graphics2D graphics, float width, float height, float offsetX, float offsetY, Transaction onClose) {
+			super(graphics, width, height, onClose);
+			theOffsetX = offsetX;
+			theOffsetY = offsetY;
+		}
+
+		@Override
+		public boolean isTransformed() {
+			return true;
+		}
+
+		@Override
+		public Point transformToRoot(float x, float y) {
+			return super.transformToRoot(x + theOffsetX, y + theOffsetY);
+		}
+
+		@Override
+		public int containsX(float x) {
+			x += theOffsetX;
+			if (x < 0)
+				return -1;
+			else if (x >= getWidth())
+				return 1;
+			else
+				return 0;
+		}
+
+		@Override
+		public int containsY(float y) {
+			y += theOffsetY;
+			if (y < 0)
+				return -1;
+			else if (y >= getHeight())
+				return 1;
+			else
+				return 0;
+		}
+
+		@Override
+		public float transformX(float x) {
+			return x + theOffsetX;
+		}
+
+		@Override
+		public float transformY(float y) {
+			return y + theOffsetY;
+		}
+
+		@Override
+		public QuickDrawScreen transform(float translateX, float translateY, float scaleX, float scaleY) {
+			if (scaleX == 1.0f && scaleY == 1.0f) {
+				if (translateX == 1.0f && translateY == 1.0f)
+					return this;
+				else
+					return new TranslatedScreen(gfx(), getWidth(), getHeight(), theOffsetX + translateX, theOffsetY + translateY,
+						Transaction.NONE);
+			} else
+				return new ScaledScreen(gfx(), getWidth() / Math.abs(scaleX), getHeight() / Math.abs(scaleY), theOffsetX + translateX,
+					theOffsetY + translateY, scaleX, scaleY, Transaction.NONE);
+		}
+
+		@Override
+		public QuickDrawScreen subScreen(float x, float y, float width, float height) {
+			Shape prevClip = gfx().getClip();
+			if (theOffsetX + x + width > getWidth())
+				width = getWidth() - x - theOffsetX;
+			if (theOffsetY + y + height > getHeight())
+				height = getHeight() - y - theOffsetY;
+			if (width < 0 || height < 0)
+				return null;
+			float translateX = theOffsetX + x;
+			float translateY = theOffsetY + y;
+			gfx().setClip((int) translateX, (int) translateY, (int) width, (int) height);
+			gfx().translate(translateX, translateY);
+			return new SimpleScreen(gfx(), width, height, () -> {
+				gfx().translate(-translateX, -translateY);
+				gfx().setClip(prevClip);
+			});
+		}
+
+		@Override
+		public Graphics2D getTransformedGraphics() {
+			Graphics2D copy = (Graphics2D) gfx().create();
+			copy.translate(theOffsetX, theOffsetY);
+			return copy;
+		}
+
+		@Override
+		public String toString() {
+			return "TranslatedScreen[" + theOffsetX + ", " + theOffsetY + ", " + getWidth() + "x" + getHeight() + "]";
+		}
+	}
+
+	public static class ScaledScreen extends AbstractScreen {
+		private final float theOffsetX;
+		private final float theOffsetY;
+		private final float theScaleX;
+		private final float theScaleY;
+		private final float theScaledOffsetX;
+		private final float theScaledOffsetY;
+
+		public ScaledScreen(Graphics2D graphics, float width, float height, float offsetX, float offsetY, float scaleX, float scaleY,
+			Transaction onClose) {
+			super(graphics, width, height, onClose);
+			theOffsetX = offsetX;
+			theOffsetY = offsetY;
+			theScaleX = scaleX;
+			theScaleY = scaleY;
+			theScaledOffsetX = theOffsetX / theScaleX;
+			theScaledOffsetY = theOffsetY / theScaleY;
+		}
+
+		@Override
+		public boolean isTransformed() {
+			return true;
+		}
+
+		@Override
+		public Point transformToRoot(float x, float y) {
+			return super.transformToRoot(x * theScaleX + theOffsetX, y * theScaleY + theOffsetY);
+		}
+
+		@Override
+		public int containsX(float x) {
+			if (theScaleX < 0) {
+				x = -(x + theScaledOffsetX);
+				if (x < 0)
+					return 1;
+				else if (x >= getWidth())
+					return -1;
+				else
+					return 0;
+			} else {
+				x -= theScaledOffsetX;
+				if (x < 0)
+					return -1;
+				else if (x >= getWidth())
+					return 1;
+				else
+					return 0;
+			}
+		}
+
+		@Override
+		public int containsY(float y) {
+			if (theScaleY < 0) {
+				y = -(y + theScaledOffsetY);
+				if (y < 0)
+					return 1;
+				else if (y >= getHeight())
+					return -1;
+				else
+					return 0;
+			} else {
+				y -= theScaledOffsetY;
+				if (y < 0)
+					return -1;
+				else if (y >= getHeight())
+					return 1;
+				else
+					return 0;
+			}
+		}
+
+		@Override
+		public float transformX(float x) {
+			return x * theScaleX + theOffsetX;
+		}
+
+		@Override
+		public float transformY(float y) {
+			return y * theScaleY + theOffsetY;
+		}
+
+		@Override
+		public QuickDrawScreen transform(float translateX, float translateY, float scaleX, float scaleY) {
+			return new ScaledScreen(gfx(), getWidth() / Math.abs(scaleX), getHeight() / Math.abs(scaleY), //
+				translateX * theScaleX + theOffsetX, translateY * theScaleY + theOffsetY, //
+				theScaleX * scaleX, theScaleY * scaleY, Transaction.NONE);
+		}
+
+		@Override
+		public QuickDrawScreen subScreen(float x, float y, float width, float height) {
+			Shape prevClip = gfx().getClip();
+			if (theOffsetX + x + width > getWidth())
+				width = getWidth() - x;
+			if (theOffsetY + y + height > getHeight())
+				height = getHeight() - y;
+			if (width < 0 || height < 0)
+				return null;
+			int clipMinX, clipMinY, clipMaxX, clipMaxY;
+			tx(x, y);
+			clipMinX = thePoint.x;
+			clipMinY = thePoint.y;
+			tx(x + width, y + height);
+			clipMaxX = thePoint.x;
+			clipMaxY = thePoint.y;
+			if (clipMinX > clipMaxX) {
+				int temp = clipMinX;
+				clipMinX = clipMaxX;
+				clipMaxX = temp;
+			}
+			if (clipMinY > clipMaxY) {
+				int temp = clipMinY;
+				clipMinY = clipMaxY;
+				clipMaxY = temp;
+			}
+			float translateX = theOffsetX + x * theScaleX;
+			float translateY = theOffsetY + y * theScaleY;
+			gfx().setClip(clipMinX, clipMinY, clipMaxX - clipMinX, clipMaxY - clipMinY);
+			gfx().translate(translateX, translateY);
+			return new ScaledScreen(gfx(), width, height, 0f, 0f, theScaleX, theScaleY, () -> {
+				gfx().translate(-translateX, -translateY);
+				gfx().setClip(prevClip);
+			});
+		}
+
+		@Override
+		public Graphics2D getTransformedGraphics() {
+			Graphics2D copy = (Graphics2D) gfx().create();
+			copy.translate(theOffsetX, theOffsetY);
+			copy.scale(theScaleX, theScaleY);
+			return copy;
+		}
+
+		@Override
+		public String toString() {
+			return "ScaledScreen[" + theOffsetX + ", " + theOffsetY + ", " + theScaleX + "x" + theScaleY + ", " + getWidth() + "x"
+				+ getHeight() + "]";
+		}
+	}
+
 	/** An individual shape implementation for {@link QuickDrawSwing} */
 	public interface QuickShapeInterpretation {
 		/** @return An observable that will cause this shape to be redrawn */
@@ -176,7 +618,7 @@ public class QuickDrawSwing implements QuickInterpretation {
 		 * @param gfx The graphics to draw to
 		 * @param screen The screen bounds
 		 */
-		void draw(Graphics2D gfx, Rectangle2D.Float screen);
+		void draw(QuickDrawScreen screen);
 
 		/**
 		 * @param containerPoint The point in the container to test
@@ -273,8 +715,8 @@ public class QuickDrawSwing implements QuickInterpretation {
 		tx.with(QuickRectangle.Interpreted.class, InterpretedQuickShapePublisher.class, InterpretedRectangle::new);
 		tx.with(QuickEllipse.Interpreted.class, InterpretedQuickShapePublisher.class, InterpretedEllipse::new);
 		tx.with(QuickPolygon.Interpreted.class, InterpretedQuickShapePublisher.class, InterpretedPolygon::new);
-		tx.with(QuickDrawText.Interpreted.class, InterpretedQuickShapePublisher.class, InterpretedText::new);
-		tx.with(QuickLine.Interpreted.class, InterpretedQuickShapePublisher.class, InterpretedLine::new);
+		tx.with(QuickDrawText.Interpreted.class, InterpretedText.class, InterpretedText::new);
+		tx.with(QuickLine.Interpreted.class, InterpretedLine.class, InterpretedLine::new);
 		tx.with(QuickFlexLine.Interpreted.class, InterpretedQuickShapePublisher.class, InterpretedFlexLine::new);
 		tx.with(QuickShapeView.Interpreted.class, InterpretedShapeView.class, InterpretedShapeView::new);
 		tx.with(Translate.Interpreted.class, InterpretedTransformOp.class, InterpretedTranslate::new);
@@ -284,6 +726,8 @@ public class QuickDrawSwing implements QuickInterpretation {
 
 		tx.with(QuickChart.Interpreted.class, InterpretedChart.class, InterpretedChart::new);
 		tx.with(QuickChart.ChartAxis.Interpreted.class, InterpretedChartAxis.class, InterpretedChartAxis::new);
+		tx.with(QuickChart.TickLine.Interpreted.class, InterpretedChartLine.class, InterpretedChartLine::new);
+		tx.with(QuickChart.GridLines.Interpreted.class, InterpretedGridLines.class, InterpretedGridLines::new);
 	}
 
 	static class InterpretedShapeContainer {
@@ -357,13 +801,13 @@ public class QuickDrawSwing implements QuickInterpretation {
 		}
 
 		@Override
-		public void draw(Graphics2D gfx, Rectangle2D.Float screen) {
+		public void draw(QuickDrawScreen screen) {
 			isDrawing = true;
 			try {
 				for (ListElement<QuickShapeInterpretation> shape = theContents.getTerminalElement(true); shape != null; shape = shape
 					.getAdjacent(true)) {
 					setState(shape);
-					shape.get().draw(gfx, screen);
+					shape.get().draw(screen);
 				}
 			} finally {
 				isDrawing = false;
@@ -807,7 +1251,7 @@ public class QuickDrawSwing implements QuickInterpretation {
 		@Override
 		protected void paintComponent(Graphics g) {
 			super.paintComponent(g);
-			theContainer.draw((Graphics2D) g, new Rectangle2D.Float(0, 0, getWidth(), getHeight()));
+			theContainer.draw(new SimpleScreen((Graphics2D) g, getWidth(), getHeight(), Transaction.NONE));
 		}
 	}
 
@@ -849,7 +1293,7 @@ public class QuickDrawSwing implements QuickInterpretation {
 		}
 
 		@Override
-		public void draw(Graphics2D gfx, Rectangle2D.Float screen) {
+		public void draw(QuickDrawScreen screen) {
 			isInAction = true;
 			try {
 				SettableValue<T> activeValue = theCollection.getActiveValue();
@@ -860,7 +1304,7 @@ public class QuickDrawSwing implements QuickInterpretation {
 					theCurrentValue = value;
 					activeValue.set(value.get());
 					activeIndex.set(i);
-					super.draw(gfx, screen);
+					super.draw(screen);
 					i++;
 				}
 			} finally {
@@ -1084,14 +1528,14 @@ public class QuickDrawSwing implements QuickInterpretation {
 		}
 
 		@Override
-		public void draw(Graphics2D gfx, Rectangle2D.Float screen) {
+		public void draw(QuickDrawScreen screen) {
 			SettableValue<T> activeValue = theCollection.getActiveValue();
 			SettableValue<Integer> activeIndex = theCollection.getActiveValueIndex();
 			int i = 0;
 			for (T value : theCollection.getValues()) {
 				activeValue.set(value);
 				activeIndex.set(i);
-				super.draw(gfx, screen);
+				super.draw(screen);
 				i++;
 			}
 		}
@@ -1214,10 +1658,12 @@ public class QuickDrawSwing implements QuickInterpretation {
 		}
 
 		public float getOpacity() {
+			return getOpacity(1.0f);
+		}
+
+		protected float getOpacity(float defaultValue) {
 			Float opacity = theOpacity.get();
-			if (opacity == null)
-				return 1.0f;
-			return opacity;
+			return opacity == null ? defaultValue : opacity.floatValue();
 		}
 
 		@Override
@@ -1414,6 +1860,11 @@ public class QuickDrawSwing implements QuickInterpretation {
 			theBgCtx.isPressed().set(pressed);
 			theBgCtx.isRightPressed().set(rightPressed);
 		}
+
+		@Override
+		public String toString() {
+			return theShape.toString();
+		}
 	}
 
 	static abstract class QuickDrawBorderedShape<S extends QuickBorderedShape> extends QuickDrawSingleShape<S> {
@@ -1492,13 +1943,17 @@ public class QuickDrawSwing implements QuickInterpretation {
 			return theTransformInverse;
 		}
 
+		interface FloatCompare {
+			int compare(float f);
+		}
+
 		/**
 		 * @param width The width of the shape
 		 * @param height The height of the shape
 		 * @param rotation The rotation of the shape
 		 * @param screen The screen bounds
 		 */
-		public boolean updateBounds(QuickSize width, QuickSize height, double rotation, Rectangle2D.Float screen) {
+		public boolean updateBounds(QuickSize width, QuickSize height, double rotation, QuickDrawScreen screen) {
 			Positionable hPos = theShape.getAddOn(Positionable.Horizontal.class);
 			Positionable vPos = theShape.getAddOn(Positionable.Vertical.class);
 
@@ -1522,19 +1977,15 @@ public class QuickDrawSwing implements QuickInterpretation {
 				}
 			}
 
-			float scaleX = Scaling.getNeededScale(theFBounds.x, theFBounds.width);
-			float scaleY = Scaling.getNeededScale(theFBounds.y, theFBounds.height);
-			boolean scale = scaleX != 1.0f || scaleY != 1.0f;
 			boolean rotate = rotation != 0.0;
 
-			if (scale || rotate) { // Need transformation
+			if (rotate) { // Need transformation
 				if (theTransform == null)
 					theTransform = new AffineTransform();
 				else
 					theTransform.setToIdentity();
 
 				theTransform.translate(theFBounds.x, theFBounds.y);
-				theTransform.scale(scaleX, scaleY);
 				if (rotate)
 					theTransform.rotate(rotation, anchor.x - theFBounds.x, anchor.y - theFBounds.y);
 
@@ -1545,35 +1996,52 @@ public class QuickDrawSwing implements QuickInterpretation {
 				}
 
 				theIBounds.x = theIBounds.y = 0;
-				theIBounds.width = (int) (theFBounds.width / scaleX);
-				theIBounds.height = (int) (theFBounds.height / scaleY);
+				theIBounds.width = (int) theFBounds.width;
+				theIBounds.height = (int) theFBounds.height;
 			} else {
 				theTransform = theTransformInverse = null;
 
-				theIBounds.x = (int) theFBounds.x;
-				theIBounds.y = (int) theFBounds.y;
-				theIBounds.width = (int) theFBounds.width;
-				theIBounds.height = (int) theFBounds.height;
+				Point p = screen.tx(theFBounds.x, theFBounds.y);
+				theIBounds.x = p.x;
+				theIBounds.y = p.y;
+				p = screen.tx(theFBounds.x + theFBounds.width, theFBounds.y + theFBounds.height);
+				if (p.x >= theIBounds.x)
+					theIBounds.width = p.x - theIBounds.x;
+				else {
+					theIBounds.width = theIBounds.x - p.x;
+					theIBounds.x = p.x;
+				}
+				if (p.y >= theIBounds.y)
+					theIBounds.height = p.y - theIBounds.y;
+				else {
+					theIBounds.height = theIBounds.y - p.y;
+					theIBounds.y = p.y;
+				}
 			}
 
 			return true;
 		}
 
-		private boolean evaluateH(Positionable hPos, QuickSize width, Point2D.Float anchor, Rectangle2D.Float screen, boolean debugging) {
-			return evaluateDimension(x -> theFBounds.x = x, w -> theFBounds.width = w, a -> anchor.x += a, hPos, width, screen.x,
-				screen.width, "width", debugging);
+		private boolean evaluateH(Positionable hPos, QuickSize width, Point2D.Float anchor, QuickDrawScreen screen, boolean debugging) {
+			return evaluateDimension(x -> theFBounds.x = x, w -> theFBounds.width = w, a -> anchor.x += a, hPos, width, screen.getWidth(),
+				screen::containsX, "width", debugging);
 		}
 
-		private boolean evaluateV(Positionable vPos, QuickSize height, Point2D.Float anchor, Rectangle2D.Float screen, boolean debugging) {
-			return evaluateDimension(y -> theFBounds.y = y, h -> theFBounds.height = h, a -> anchor.y += a, vPos, height, screen.y,
-				screen.height, "height", debugging);
+		private boolean evaluateV(Positionable vPos, QuickSize height, Point2D.Float anchor, QuickDrawScreen screen, boolean debugging) {
+			return evaluateDimension(y -> theFBounds.y = y, h -> theFBounds.height = h, a -> anchor.y += a, vPos, height,
+				screen.getHeight(), screen::containsY, "height", debugging);
 		}
 
 		private boolean evaluateDimension(FloatConsumer setPosition, FloatConsumer setSize, FloatConsumer setAnchor, Positionable positions,
-			QuickSize specSize, float screenOffset, float screenSize, String sizeName, boolean debugging) {
-			QuickSize leading = positions.getLeading().get();
-			QuickSize center = positions.getCenter().get();
-			QuickSize trailing = positions.getTrailing().get();
+			QuickSize specSize, float screenSize, FloatCompare contains, String sizeName, boolean debugging) {
+			QuickSize leading, center, trailing;
+			if (positions == null)
+				leading = center = trailing = null;
+			else {
+				leading = positions.getLeading().get();
+				center = positions.getCenter().get();
+				trailing = positions.getTrailing().get();
+			}
 			float pos, size, anchor;
 			// There are many ways of specifying the positioning and height of the shape here.
 			// The user will get a warning if any of the attributes conflict,
@@ -1581,6 +2049,8 @@ public class QuickDrawSwing implements QuickInterpretation {
 			// We'll respect size first, then leading, then trailing, and center last.
 			if (specSize != null) {
 				size = specSize.evaluateFloat(screenSize);
+				if (Float.isInfinite(size))
+					return false;
 				if (leading != null)
 					anchor = pos = leading.evaluateFloat(screenSize);
 				else if (trailing != null) {
@@ -1620,7 +2090,7 @@ public class QuickDrawSwing implements QuickInterpretation {
 			else if (size < 0) {
 				theShape.reporting().warn(StringUtils.capitalize(sizeName) + " evaluates negatively: " + size);
 				draw = false;
-			} else if (pos > screenOffset + screenSize || pos + size <= screenOffset)
+			} else if (contains.compare(pos) > 0 || contains.compare(pos + size) < 0)
 				draw = false;
 			else
 				draw = true;
@@ -1634,61 +2104,9 @@ public class QuickDrawSwing implements QuickInterpretation {
 		}
 	}
 
-	static class Scaling {
-		private static final float HI_SCALE_THRESH = 1E8f;
-		private static final float NEG_HI_SCALE_THRESH = -HI_SCALE_THRESH;
-		private static final float LO_SCALE_THRESH = 100.0f;
-		private static float[] HIGH_SCALE_VALUES;
-		private static float[] LOW_SCALE_VALUES;
-
-		static float getNeededScale(float min, float size) {
-			if (size == 0.0f)
-				return 1.0f;
-			else if (min < NEG_HI_SCALE_THRESH)
-				return getHighScaleFor(-min);
-			else if (min > HI_SCALE_THRESH || size > HI_SCALE_THRESH)
-				return getHighScaleFor(min + size);
-			else if (size < LO_SCALE_THRESH && (size != (int) size || (min < LO_SCALE_THRESH && min != (int) min)))
-				return getLowScaleFor(size);
-			else
-				return 1.0f;
-		}
-
-		static {
-			FloatList scales = new FloatList();
-			float max = Float.MAX_VALUE / 1E3f;
-			for (float scale = HI_SCALE_THRESH / 1E3f; scale < max; scale *= 1E3f)
-				scales.add(scale);
-			HIGH_SCALE_VALUES = scales.toArray();
-			LOW_SCALE_VALUES = new float[HIGH_SCALE_VALUES.length];
-			for (int i = 0; i < LOW_SCALE_VALUES.length; i++)
-				LOW_SCALE_VALUES[i] = 1.0f / HIGH_SCALE_VALUES[HIGH_SCALE_VALUES.length - i - 1];
-		}
-
-		private static float getHighScaleFor(float value) {
-			int index = Arrays.binarySearch(HIGH_SCALE_VALUES, value);
-			if (index < 0)
-				index = -index - 1;
-			if (index > 1)
-				index -= 2;
-			else if (index > 0)
-				index--;
-			return HIGH_SCALE_VALUES[index];
-		}
-
-		private static float getLowScaleFor(float value) {
-			int index = Arrays.binarySearch(LOW_SCALE_VALUES, value);
-			if (index < 0)
-				index = -index - 1;
-			if (index > 0)
-				index--;
-			return LOW_SCALE_VALUES[index];
-		}
-	}
-
 	static abstract class QuickDrawSimpleShape<S extends QuickSimpleShape> extends QuickDrawBorderedShape<S> {
 		private final Observable<?> theUpdate;
-		private Rectangle2D.Float theScreen;
+		private QuickDrawScreen theScreen;
 		private final SimpleShapeHandling theBounds;
 		private SettableValue<Double> theRotationValue;
 
@@ -1742,60 +2160,52 @@ public class QuickDrawSwing implements QuickInterpretation {
 		protected abstract Point2D.Float getHit(Point2D.Float point);
 
 		@Override
-		public void draw(Graphics2D gfx, Rectangle2D.Float screen) {
+		public void draw(QuickDrawScreen screen) {
 			if (!isVisible())
 				return;
 
 			theScreen = screen;
-			if (this instanceof QuickDrawEllipse)
-				QommonsUtils.doNothing();
 			boolean draw = theBounds.updateBounds(//
 				getShape().getWidth().get(), getShape().getHeight().get(), theRotationValue.get(), screen);
 			String debugPrint = getShape().getDebugPrint().get();
 			if (!draw && debugPrint == null)
 				return;
+			Rectangle intBounds = theBounds.getBounds();
+			QuickDrawScreen myScreen;
 			if (theBounds.getTransform() != null) {
+				Graphics2D gfx = screen.getTransformedGraphics();
 				gfx.transform(theBounds.getTransform());
-			}
+				// We don't use the dimensions
+				myScreen = new SimpleScreen(gfx, Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY, gfx::dispose);
+			} else
+				myScreen = screen;
 			try {
 				if (debugPrint != null) {
-					AffineTransform txform = gfx.getTransform();
 					StringBuilder msg = new StringBuilder();
-					Rectangle b = theBounds.getBounds();
 					Rectangle2D.Float fb = theBounds.getFBounds();
 					msg.append(debugPrint).append(": Drawing at [")//
 					.append(fb.getMinX()).append(", ").append(fb.getMinY()).append("] to [")//
 					.append(fb.getMaxX()).append(", ").append(fb.getMaxY()).append(']');
-					if (txform != null && !txform.isIdentity()) {
-						Point2D pt = new Point2D.Double();
-						pt.setLocation(b.getMinX(), b.getMinY());
-						txform.transform(pt, pt);
+					if (myScreen.isTransformed()) {
+						Point pt = myScreen.transformToRoot(fb.x, fb.y);
 						msg.append("\n\tTransformed to [").append(pt.getX()).append(", ").append(pt.getY()).append("] to [");
-						pt.setLocation(b.getMaxX(), b.getMaxY());
-						txform.transform(pt, pt);
+						pt = myScreen.transformToRoot(fb.x + fb.width, fb.y + fb.height);
 						msg.append(pt.getX()).append(", ").append(pt.getY()).append(']');
 					}
 					getShape().reporting().info(msg.toString());
 				}
 				if (draw) {
-					Rectangle intBounds = theBounds.getBounds();
-					doDraw(gfx, intBounds);
+					doDraw(myScreen.gfx(), intBounds);
 					if (hasInnerContents()) {
-						Graphics2D contentGfx = (Graphics2D) gfx.create(intBounds.x, intBounds.y, intBounds.width, intBounds.height);
-						try {
-							if (theBounds.getTransformInverse() != null) {
-								contentGfx.transform(theBounds.getTransformInverse());
-							}
-							drawInnerContents(contentGfx, theBounds.getFBounds());
-						} finally {
-							contentGfx.dispose();
+						try (QuickDrawScreen contentScreen = myScreen.subScreen(intBounds.x, intBounds.y, intBounds.width,
+							intBounds.height)) {
+							drawInnerContents(contentScreen);
 						}
 					}
 				}
 			} finally {
-				if (theBounds.getTransformInverse() != null) {
-					gfx.transform(theBounds.getTransformInverse());
-				}
+				if (myScreen != screen)
+					myScreen.close();
 			}
 		}
 
@@ -1805,7 +2215,7 @@ public class QuickDrawSwing implements QuickInterpretation {
 			return false;
 		}
 
-		protected void drawInnerContents(Graphics2D gfx, Rectangle2D.Float bounds) {
+		protected void drawInnerContents(QuickDrawScreen screen) {
 		}
 	}
 
@@ -1884,8 +2294,8 @@ public class QuickDrawSwing implements QuickInterpretation {
 		}
 
 		@Override
-		protected void drawInnerContents(Graphics2D gfx, Rectangle2D.Float bounds) {
-			theContainer.draw(gfx, bounds);
+		protected void drawInnerContents(QuickDrawScreen screen) {
+			theContainer.draw(screen);
 		}
 
 		@Override
@@ -2071,52 +2481,40 @@ public class QuickDrawSwing implements QuickInterpretation {
 	interface VertexedShape extends QuickShapeInterpretation {
 		float[][] getVertices();
 
+		String getDebugPrint();
+
+		ErrorReporting reporting();
+
 		@Override
-		default void draw(Graphics2D gfx, Rectangle2D.Float screen) {
-			float[][] points = getVertices();
-			if (points == null)
+		default void draw(QuickDrawScreen screen) {
+			float[][] vertices = getVertices();
+			if (vertices == null)
 				return;
+			int[][] points = screen.tx(vertices);
 
-			// If the point magnitudes are too large or too small, we may need to scale in order to render them correctly
-			float[][] bounds = new float[][] { //
-				{ points[0][0], points[0][0] }, { points[0][1], points[0][1] }//
-			};
+			String debugPrint = getDebugPrint();
 
-			for (int p = 1; p < points.length; p++) {
-				float x = points[p][0];
-				if (x < bounds[0][0])
-					bounds[0][0] = x;
-				else if (x > bounds[0][1])
-					bounds[0][1] = x;
-				float y = points[p][1];
-				if (y < bounds[1][0])
-					bounds[1][0] = y;
-				else if (y > bounds[1][1])
-					bounds[1][1] = y;
-			}
-			float xScale = Scaling.getNeededScale(bounds[0][0], bounds[0][1] - bounds[0][0]);
-			float yScale = Scaling.getNeededScale(bounds[1][0], bounds[1][1] - bounds[1][0]);
-			boolean scaled = xScale != 1.0f || yScale != 1.0f;
-
-			int[][] gfxPoints = new int[2][points.length];
-			if (scaled) {
-				for (int p = 0; p < points.length; p++) {
-					gfxPoints[0][p] = (int) (points[0][p] / xScale);
-					gfxPoints[1][p] = (int) (points[1][p] / yScale);
+			if (debugPrint != null) {
+				StringBuilder msg = new StringBuilder();
+				msg.append(debugPrint).append(": Drawing at ");
+				for (int p = 0; p < vertices[0].length; p++) {
+					if (p > 0)
+						msg.append(", ");
+					msg.append('[').append(vertices[0][p]).append(", ").append(vertices[1][p]).append(']');
 				}
-				gfx.scale(xScale, yScale);
-			} else {
-				for (int p = 0; p < points.length; p++) {
-					gfxPoints[0][p] = (int) (points[0][p]);
-					gfxPoints[1][p] = (int) (points[1][p]);
+				if (screen.isTransformed()) {
+					msg.append("\n\tTransformed to ");
+					for (int p = 0; p < vertices[0].length; p++) {
+						Point pt = screen.transformToRoot(vertices[0][p], vertices[1][p]);
+						if (p > 0)
+							msg.append(", ");
+						msg.append('[').append(pt.getX()).append(", ").append(pt.getY()).append(']');
+					}
 				}
+				reporting().info(msg.toString());
 			}
 
-			try {
-				draw(gfx, gfxPoints);
-			} finally {
-				gfx.scale(1.0f / xScale, 1.0f / yScale);
-			}
+			draw(screen.gfx(), points);
 		}
 
 		void draw(Graphics2D gfx, int[][] points);
@@ -2143,9 +2541,19 @@ public class QuickDrawSwing implements QuickInterpretation {
 		}
 
 		@Override
-		public void draw(Graphics2D gfx, Rectangle2D.Float screen) {
+		public void draw(QuickDrawScreen screen) {
 			if (isVisible())
-				VertexedShape.super.draw(gfx, screen);
+				VertexedShape.super.draw(screen);
+		}
+
+		@Override
+		public String getDebugPrint() {
+			return getShape().getDebugPrint().get();
+		}
+
+		@Override
+		public ErrorReporting reporting() {
+			return getShape().reporting();
 		}
 
 		@Override
@@ -2255,11 +2663,10 @@ public class QuickDrawSwing implements QuickInterpretation {
 		}
 
 		@Override
-		public void draw(Graphics2D gfx, Rectangle2D.Float screen) {
+		public void draw(QuickDrawScreen screen) {
 			if (!isVisible())
 				return;
-			theParentFont = gfx.getFont();
-			Rectangle bounds = updateBounds(gfx.getFontRenderContext());
+			Rectangle2D.Float bounds = updateBounds(screen.gfx());
 			if (bounds == null)
 				return;
 			double rotation = theRotationValue == null ? 0.0 : theRotationValue.get();
@@ -2268,13 +2675,16 @@ public class QuickDrawSwing implements QuickInterpretation {
 			// System.out.println(theText + " bounds=" + bounds + " screen=" + screen + " rot=" + (rotation / Math.PI * 180) + " tx="
 			// + theBounds.getBounds());
 			theBounds.getBounds().y += bounds.height;
-			if (theBounds.getTransform() != null)
+			if (theBounds.getTransform() != null) {
+				Graphics2D gfx = screen.getTransformedGraphics();
 				gfx.transform(theBounds.getTransform());
-			try {
-				drawText(gfx, theBounds.getBounds().x, theBounds.getBounds().y);
-			} finally {
-				if (theBounds.getTransformInverse() != null)
-					gfx.transform(theBounds.getTransformInverse());
+				try {
+					drawText(gfx, theBounds.getBounds().x, theBounds.getBounds().y);
+				} finally {
+					gfx.dispose();
+				}
+			} else {
+				drawText(screen.gfx(), theBounds.getBounds().x, theBounds.getBounds().y);
 			}
 		}
 
@@ -2298,7 +2708,25 @@ public class QuickDrawSwing implements QuickInterpretation {
 				subText.drawText(gfx, x, y);
 		}
 
-		protected Rectangle updateBounds(FontRenderContext renderCtx) {
+		public Rectangle2D.Float getRotatedBounds(QuickDrawScreen screen) {
+			if (!isVisible())
+				return null;
+			Rectangle2D.Float bounds = updateBounds(screen.gfx());
+			if (bounds == null)
+				return null;
+			double rotation = theRotationValue == null ? 0.0 : theRotationValue.get();
+			if (!theBounds.updateBounds(//
+				QuickSize.ofPixels(bounds.width), QuickSize.ofPixels(bounds.height), rotation, screen))
+				return null;
+			return theBounds.getFBounds();
+		}
+
+		protected Rectangle2D.Float updateBounds(Graphics2D gfx) {
+			theParentFont = gfx.getFont();
+			return updateBounds(gfx.getFontRenderContext());
+		}
+
+		protected Rectangle2D.Float updateBounds(FontRenderContext renderCtx) {
 			if (renderCtx == null) {
 				if (theText != null)
 					System.err.println(Integer.toHexString(hashCode()) + " (" + theText + "): Null render context");
@@ -2317,18 +2745,18 @@ public class QuickDrawSwing implements QuickInterpretation {
 
 			if (theTextBounds == null && theSubTexts.isEmpty())
 				return null;
-			Rectangle bounds = new Rectangle();
+			Rectangle2D.Float bounds = new Rectangle2D.Float();
 			if (theTextBounds != null) {
-				bounds.x = (int) Math.round(theTextBounds.getX());
-				bounds.y = (int) Math.round(theTextBounds.getY());
-				bounds.width = (int) Math.round(theTextBounds.getWidth());
-				bounds.height = (int) Math.round(theTextBounds.getHeight());
+				bounds.x = (float) theTextBounds.getX();
+				bounds.y = (float) theTextBounds.getY();
+				bounds.width = (float) theTextBounds.getWidth();
+				bounds.height = (float) theTextBounds.getHeight();
 			}
 			for (QuickDrawSwingText subText : theSubTexts) {
-				Rectangle subBounds = subText.updateBounds(renderCtx);
+				Rectangle2D.Float subBounds = subText.updateBounds(renderCtx);
 				if (subBounds != null) {
 					if (bounds.width > 0)
-						subBounds.setLocation(subBounds.x + bounds.width, subBounds.y);
+						subBounds.x += bounds.width;
 					bounds.add(subBounds);
 				}
 			}
@@ -2339,7 +2767,7 @@ public class QuickDrawSwing implements QuickInterpretation {
 		public Point2D.Float hit(Point2D.Float containerPoint) {
 			if (!isVisible())
 				return null;
-			Rectangle bounds = updateBounds(theRenderContext);
+			Rectangle2D.Float bounds = updateBounds(theRenderContext);
 			if (bounds == null)
 				return null;
 			Point2D.Float txPoint = transform(containerPoint, theBounds.getTransformInverse());
@@ -2402,7 +2830,7 @@ public class QuickDrawSwing implements QuickInterpretation {
 			}
 		}
 
-		HitData getHit(double x0, double y0, double x1, double y1, float x, float y, double dLimit) {
+		public static HitData getHit(double x0, double y0, double x1, double y1, float x, float y, double dLimit) {
 			double dx = x1 - x0;
 			double dy = y1 - y0;
 			double dx0 = x - x0;
@@ -2443,7 +2871,80 @@ public class QuickDrawSwing implements QuickInterpretation {
 		}
 	}
 
-	static class QuickDrawLine extends QuickDrawLinearShape<QuickLine> implements VertexedShape {
+	static abstract class AbstractLine<L extends QuickLinearShape> extends QuickDrawLinearShape<L> implements VertexedShape {
+		protected AbstractLine(L shape) {
+			super(shape);
+		}
+
+		@Override
+		public void draw(QuickDrawScreen screen) {
+			if (isVisible())
+				VertexedShape.super.draw(screen);
+		}
+
+		@Override
+		public String getDebugPrint() {
+			return getShape().getDebugPrint().get();
+		}
+
+		@Override
+		public ErrorReporting reporting() {
+			return getShape().reporting();
+		}
+
+		@Override
+		public void draw(Graphics2D gfx, int[][] points) {
+			drawLine(gfx, getColor(), getOpacity(), getThickness(), getStrokeDash(), points);
+		}
+
+		public static void drawLine(Graphics2D gfx, Color color, float opacity, double thickness, StrokeDashing dash, int[][] points) {
+			if (thickness <= 0 || opacity <= 0 || color.getAlpha() == 0)
+				return;
+
+			if (opacity < 1 && color.getAlpha() > 0)
+				color = Colors.transluce(color, opacity);
+			if (color.getAlpha() == 0)
+				return;
+			gfx.setColor(color);
+			dash.apply(gfx, (float) thickness, false);
+
+			boolean first = true;
+			int prevX = 0, prevY = 0;
+			// System.out.print("Drawing " + Colors.toString(color));
+			for (int p = 0; p < points[0].length; p++) {
+				int x = points[0][p];
+				int y = points[1][p];
+				// System.out.print(" (" + x + ", " + y + ")");
+				if (first)
+					first = false;
+				else
+					gfx.drawLine(prevX, prevY, x, y);
+
+				prevX = x;
+				prevY = y;
+			}
+		}
+
+		@Override
+		public Point2D.Float hit(Point2D.Float containerPoint) {
+			if (!isVisible())
+				return null;
+			double thickness = getThickness();
+			if (thickness <= 0)
+				return null;
+
+			float[][] vertices = getVertices();
+			for (int v = 1; v < vertices[0].length; v++) {
+				if (getHit(vertices[0][v - 1], vertices[1][v - 1], //
+					vertices[0][v], vertices[1][v], //
+					containerPoint.x, containerPoint.y, thickness) != null)
+					return containerPoint;
+			}
+			return null;
+		}
+	}
+
+	static class QuickDrawLine extends AbstractLine<QuickLine> {
 		private final Observable<?> theUpdate;
 
 		QuickDrawLine(QuickLine shape) {
@@ -2469,71 +2970,6 @@ public class QuickDrawSwing implements QuickInterpretation {
 		@Override
 		public Observable<?> update() {
 			return theUpdate;
-		}
-
-		@Override
-		public void draw(Graphics2D gfx, Rectangle2D.Float screen) {
-			if (isVisible())
-				VertexedShape.super.draw(gfx, screen);
-		}
-
-		@Override
-		public void draw(Graphics2D gfx, int[][] points) {
-			Color color = getColor();
-			float opacity = getOpacity();
-			double thickness = getThickness();
-			if (thickness <= 0 || opacity <= 0 || color.getAlpha() == 0)
-				return;
-			StrokeDashing dash = getStrokeDash();
-
-			if (opacity < 1 && color.getAlpha() > 0)
-				color = Colors.transluce(color, opacity);
-			if (color.getAlpha() == 0)
-				return;
-			gfx.setColor(color);
-			dash.apply(gfx, (float) thickness, false);
-
-			boolean first = true;
-			int prevX = 0, prevY = 0;
-			// System.out.print("Drawing " + Colors.toString(color));
-			for (int p = 0; p < points[0].length; p++) {
-				int x = points[0][p];
-				int y = points[1][p];
-				// System.out.print(" (" + x + ", " + y + ")");
-				if (first)
-					first = false;
-				else
-					gfx.drawLine(prevX, prevY, x, y);
-
-				prevX = x;
-				prevY = y;
-			}
-			// System.out.println();
-		}
-
-		@Override
-		public Point2D.Float hit(Point2D.Float containerPoint) {
-			if (!isVisible())
-				return null;
-			double thickness = getThickness();
-			if (thickness <= 0)
-				return null;
-
-			QuickPoint prev = null;
-			for (QuickPoint point : getShape().getPoints()) {
-				if (prev == null) {
-					prev = point;
-					continue;
-				}
-
-				if (getHit(prev.getX().get(), prev.getY().get(), //
-					point.getX().get(), point.getY().get(), //
-					containerPoint.x, containerPoint.y, thickness) != null)
-					return containerPoint;
-
-				prev = point;
-			}
-			return null;
 		}
 	}
 
@@ -2578,9 +3014,19 @@ public class QuickDrawSwing implements QuickInterpretation {
 		}
 
 		@Override
-		public void draw(Graphics2D gfx, Rectangle2D.Float screen) {
+		public void draw(QuickDrawScreen screen) {
 			if (isVisible())
-				VertexedShape.super.draw(gfx, screen);
+				VertexedShape.super.draw(screen);
+		}
+
+		@Override
+		public String getDebugPrint() {
+			return getShape().getDebugPrint().get();
+		}
+
+		@Override
+		public ErrorReporting reporting() {
+			return getShape().reporting();
 		}
 
 		@Override
@@ -2798,50 +3244,40 @@ public class QuickDrawSwing implements QuickInterpretation {
 		}
 
 		@Override
-		public void draw(Graphics2D gfx, Rectangle2D.Float screen) {
-			updateTransform();
-			if (theTransform.isIdentity()) {
-				super.draw(gfx, screen);
-				return;
+		public void draw(QuickDrawScreen screen) {
+			boolean simple = true;
+			for (QuickDrawTransform txform : theTransformations) {
+				if (!(txform instanceof QuickDrawSimpleTransform) || !((QuickDrawSimpleTransform) txform).isSimple()) {
+					simple = false;
+					break;
+				}
 			}
-			gfx.transform(theTransform);
-			Point2D.Float ul = transform(new Point2D.Float(screen.x, screen.y), theReverseTransform);
-			Point2D.Float ur = transform(new Point2D.Float(screen.x + screen.width, screen.y), theReverseTransform);
-			Point2D.Float ll = transform(new Point2D.Float(screen.x, screen.y + screen.height), theReverseTransform);
-			Point2D.Float lr = transform(new Point2D.Float(screen.x + screen.width, screen.y + screen.height), theReverseTransform);
-			float minX = min(ul.x, ur.x, ll.x, lr.x);
-			float minY = min(ul.y, ur.y, ll.y, lr.y);
-			float maxX = max(ul.x, ur.x, ll.x, lr.x);
-			float maxY = max(ul.y, ur.y, ll.y, lr.y);
-			Rectangle2D.Float txScreen = new Rectangle2D.Float(minX, minY, maxX - minX, maxY - minY);
-			try {
-				super.draw(gfx, txScreen);
-			} finally {
-				if (theReverseTransform != null)
-					gfx.transform(theReverseTransform);
+			if (simple) {
+				for (QuickDrawTransform txform : theTransformations) {
+					screen = ((QuickDrawSimpleTransform) txform).transform(screen);
+					if (screen == null)
+						break;
+				}
+				if (screen != null)
+					super.draw(screen);
+			} else {
+				updateTransform();
+				if (theTransform.isIdentity()) {
+					super.draw(screen);
+					return;
+				}
+				Graphics2D gfx = screen.getTransformedGraphics();
+				try {
+					gfx.transform(theTransform);
+					Point2D.Float bounds = new Point2D.Float(screen.getWidth(), screen.getHeight());
+					for (QuickDrawTransform txform : theTransformations)
+						txform.transformBounds(bounds);
+					screen = new SimpleScreen(gfx, bounds.x, bounds.y, Transaction.NONE);
+					super.draw(screen);
+				} finally {
+					gfx.dispose();
+				}
 			}
-		}
-
-		private static float min(float x1, float x2, float x3, float x4) {
-			float min = x1;
-			if (x2 < min)
-				min = x2;
-			if (x3 < min)
-				min = x3;
-			if (x4 < min)
-				min = x4;
-			return min;
-		}
-
-		private static float max(float x1, float x2, float x3, float x4) {
-			float max = x1;
-			if (x2 > max)
-				max = x2;
-			if (x3 > max)
-				max = x3;
-			if (x4 > max)
-				max = x4;
-			return max;
 		}
 
 		@Override
@@ -2865,7 +3301,7 @@ public class QuickDrawSwing implements QuickInterpretation {
 		}
 	}
 
-	static class QuickDrawTranslate implements QuickDrawTransform {
+	static class QuickDrawTranslate implements QuickDrawSimpleTransform {
 		private final SettableValue<Double> theX;
 		private final SettableValue<Double> theY;
 
@@ -2879,6 +3315,15 @@ public class QuickDrawSwing implements QuickInterpretation {
 			double x = theX.get();
 			double y = theY.get();
 			source.translate(x, y);
+		}
+
+		@Override
+		public void transformBounds(Point2D.Float bounds) {
+		}
+
+		@Override
+		public QuickDrawScreen transform(QuickDrawScreen screen) {
+			return screen.transform(theX.get().floatValue(), theY.get().floatValue(), 1f, 1f);
 		}
 
 		@Override
@@ -2898,7 +3343,7 @@ public class QuickDrawSwing implements QuickInterpretation {
 		}
 	}
 
-	static class QuickDrawScale implements QuickDrawTransform {
+	static class QuickDrawScale implements QuickDrawSimpleTransform {
 		private final SettableValue<Double> theX;
 		private final SettableValue<Double> theY;
 		private final ErrorReporting theReporting;
@@ -2921,6 +3366,35 @@ public class QuickDrawSwing implements QuickInterpretation {
 					y = 1;
 			}
 			source.scale(x, y);
+		}
+
+		@Override
+		public void transformBounds(Point2D.Float bounds) {
+			double x = theX.get();
+			double y = theY.get();
+			if (x == 0 || y == 0) {
+				theReporting.error("Scale cannot be ==0 (" + x + ", " + y + ")");
+				if (x == 0)
+					x = 1;
+				if (y == 0)
+					y = 1;
+			}
+			bounds.x *= (float) x;
+			bounds.y *= (float) y;
+		}
+
+		@Override
+		public QuickDrawScreen transform(QuickDrawScreen screen) {
+			double x = theX.get();
+			double y = theY.get();
+			if (x == 0 || y == 0) {
+				theReporting.error("Scale cannot be ==0 (" + x + ", " + y + ")");
+				if (x == 0)
+					x = 1;
+				if (y == 0)
+					y = 1;
+			}
+			return screen.transform(0f, 0f, (float) x, (float) y);
 		}
 
 		@Override
@@ -2958,6 +3432,10 @@ public class QuickDrawSwing implements QuickInterpretation {
 		}
 
 		@Override
+		public void transformBounds(Point2D.Float bounds) {
+		}
+
+		@Override
 		public Observable<?> update() {
 			return Observable
 				.onRootFinish(Observable.or(theAnchorX.noInitChanges(), theAnchorY.noInitChanges(), theRadians.noInitChanges()));
@@ -2975,7 +3453,7 @@ public class QuickDrawSwing implements QuickInterpretation {
 		}
 	}
 
-	static class QuickDrawToCoords implements QuickDrawTransform {
+	static class QuickDrawToCoords implements QuickDrawSimpleTransform {
 		private final SettableValue<Boolean> isActive;
 		private final SettableValue<Double> theSourceWidth;
 		private final SettableValue<Double> theSourceHeight;
@@ -3005,20 +3483,71 @@ public class QuickDrawSwing implements QuickInterpretation {
 				double targetMinY = theTargetMinY.get();
 				double targetWidth = theTargetWidth.get();
 				double targetHeight = theTargetHeight.get();
-				if (screenWidth <= 0 || screenHeight <= 0 || targetWidth <= 0 || targetHeight <= 0)
-					return;
-
-				double translateX = -targetMinX;
-				double translateY = -targetMinY;
-				double scaleX = screenWidth / targetWidth;
-				double scaleY = screenHeight / targetHeight;
-				if (isFlipY) {
-					translateY -= targetHeight * 2;
-					scaleY = -scaleY;
-				}
-				source.scale(scaleX, scaleY);
-				source.translate(translateX, translateY);
+				transform(source, screenWidth, screenHeight, targetMinX, targetMinY, targetWidth, targetHeight, isFlipY);
 			}
+		}
+
+		@Override
+		public void transformBounds(Point2D.Float bounds) {
+			double screenWidth = theSourceWidth.get();
+			double screenHeight = theSourceHeight.get();
+			double targetWidth = theTargetWidth.get();
+			double targetHeight = theTargetHeight.get();
+			if (screenWidth <= 0 || screenHeight <= 0 || targetWidth == 0 || targetHeight == 0)
+				return;
+			bounds.x = (float) targetWidth;
+			bounds.y = (float) targetHeight;
+		}
+
+		@Override
+		public QuickDrawScreen transform(QuickDrawScreen screen) {
+			if (!isActive.get())
+				return screen;
+
+			double screenWidth = theSourceWidth.get();
+			double screenHeight = theSourceHeight.get();
+			double targetMinX = theTargetMinX.get();
+			double targetMinY = theTargetMinY.get();
+			double targetWidth = theTargetWidth.get();
+			double targetHeight = theTargetHeight.get();
+			return transform(screen, screenWidth, screenHeight, targetMinX, targetMinY, targetWidth, targetHeight, isFlipY);
+		}
+
+		public static void transform(AffineTransform source, //
+			double screenWidth, double screenHeight, //
+			double targetMinX, double targetMinY, double targetWidth, double targetHeight, boolean flipY) {
+			if (screenWidth <= 0 || screenHeight <= 0 || targetWidth == 0 || targetHeight == 0)
+				return;
+
+			double translateX = -targetMinX;
+			double translateY = -targetMinY;
+			double scaleX = screenWidth / targetWidth;
+			double scaleY = screenHeight / targetHeight;
+			if (flipY) {
+				translateY -= targetHeight * 2;
+				scaleY = -scaleY;
+			}
+			source.scale(scaleX, scaleY);
+			source.translate(translateX, translateY);
+		}
+
+		public static QuickDrawScreen transform(QuickDrawScreen screen, //
+			double screenWidth, double screenHeight, //
+			double targetMinX, double targetMinY, double targetWidth, double targetHeight, boolean flipY) {
+			if (screenWidth <= 0 || screenHeight <= 0 || targetWidth == 0 || targetHeight == 0)
+				return screen;
+
+			double scaleX = screenWidth / targetWidth;
+			double scaleY = screenHeight / targetHeight;
+			double translateX = -targetMinX;
+			double translateY = -targetMinY;
+			if (flipY) {
+				translateY -= targetHeight * 2;
+				scaleY = -scaleY;
+			}
+			translateX *= scaleX;
+			translateY *= scaleY;
+			return screen.transform((float) translateX, (float) translateY, (float) scaleX, (float) scaleY);
 		}
 
 		@Override
@@ -3037,58 +3566,602 @@ public class QuickDrawSwing implements QuickInterpretation {
 		InterpretedChart(QuickChart.Interpreted<?> chart, Transformer<ExpressoInterpretationException> tx)
 			throws ExpressoInterpretationException {
 			super(chart, tx);
-			theHAxis = tx.transform(chart.getHAxis(), InterpretedChartAxis.class);
-			theVAxis = tx.transform(chart.getVAxis(), InterpretedChartAxis.class);
+			theHAxis = chart.getHAxis() == null ? null : tx.transform(chart.getHAxis(), InterpretedChartAxis.class);
+			theVAxis = chart.getVAxis() == null ? null : tx.transform(chart.getVAxis(), InterpretedChartAxis.class);
 		}
 
 		@Override
 		public QuickDrawShapePublisher interpret(QuickChart element) throws ModelInstantiationException {
 			return new QuickDrawChart(element, //
-				((InterpretedChartAxis<Object>) theHAxis).interpret((QuickChart.ChartAxis<Object>) element.getHAxis()), //
-				((InterpretedChartAxis<Object>) theVAxis).interpret((QuickChart.ChartAxis<Object>) element.getVAxis()),
-				getPublishers(element));
+				theHAxis == null ? null
+					: ((InterpretedChartAxis<Number>) theHAxis).interpret((QuickChart.ChartAxis<Number>) element.getHAxis()), //
+					theVAxis == null ? null
+						: ((InterpretedChartAxis<Number>) theVAxis).interpret((QuickChart.ChartAxis<Number>) element.getVAxis()),
+						getPublishers(element));
 		}
 	}
 
 	static class QuickDrawChart extends QuickDrawRectangle<QuickChart> {
 		private final QuickDrawChartAxis<?> theHAxis;
 		private final QuickDrawChartAxis<?> theVAxis;
+		private final List<QuickSwingGridLines> theGridLines;
 
 		QuickDrawChart(QuickChart chart, QuickDrawChartAxis<?> hAxis, QuickDrawChartAxis<?> vAxis, List<QuickDrawShapePublisher> contents) {
 			super(chart, contents);
 			theHAxis = hAxis;
 			theVAxis = vAxis;
+			theGridLines = new ArrayList<>();
+			for (QuickDrawShapePublisher content : contents) {
+				if (content instanceof QuickSwingGridLines) {
+					theGridLines.add((QuickSwingGridLines) content);
+					((QuickSwingGridLines) content).setAxes(theHAxis, theVAxis);
+				}
+			}
 		}
 
+		@Override
+		public float getOpacity() {
+			return getOpacity(0.0f);
+		}
+
+		@Override
+		protected boolean hasInnerContents() {
+			return theHAxis != null || theVAxis != null || super.hasInnerContents();
+		}
+
+		@Override
+		protected void drawInnerContents(QuickDrawScreen screen) {
+			// First figure out where everything needs to be
+			int hAxisSize = theHAxis == null ? 0 : (int) Math.ceil(theHAxis.getLabelSectionSize(screen, false));
+			int vAxisSize = theVAxis == null ? 0 : (int) Math.ceil(theVAxis.getLabelSectionSize(screen, true));
+			if (hAxisSize > screen.getWidth())
+				hAxisSize = (int) screen.getWidth();
+			if (vAxisSize > screen.getHeight())
+				vAxisSize = (int) screen.getHeight();
+			// Default for the horizontal axis is the bottom
+			boolean hAxisTop = theHAxis == null ? false : Boolean.TRUE.equals(theHAxis.getAxis().isLeading().get());
+			// Default for the vertical axis is the left
+			boolean vAxisLeft = theVAxis == null ? false : !Boolean.FALSE.equals(theVAxis.getAxis().isLeading().get());
+			Rectangle2D.Float hLabelSection, vLabelSection, chartArea;
+			if (theHAxis == null)
+				hLabelSection = null;
+			else
+				hLabelSection = new Rectangle2D.Float(//
+					vAxisLeft ? vAxisSize : 0, //
+						hAxisTop ? 0 : screen.getHeight() - hAxisSize, //
+							screen.getHeight() - vAxisSize, //
+							hAxisSize);
+			if (theVAxis == null)
+				vLabelSection = null;
+			else
+				vLabelSection = new Rectangle2D.Float(//
+					vAxisLeft ? 0 : screen.getWidth() - vAxisSize, //
+						hAxisTop ? hAxisSize : 0, //
+							vAxisSize, //
+							screen.getHeight() - hAxisSize);
+			if (theHAxis == null && theVAxis == null)
+				chartArea = new Rectangle2D.Float(0, 0, screen.getWidth(), screen.getHeight());
+			else
+				chartArea = new Rectangle2D.Float(//
+					vAxisLeft ? vAxisSize : 0, //
+						hAxisTop ? hAxisSize : 0, //
+							screen.getWidth() - vAxisSize, //
+							screen.getHeight() - hAxisSize);
+
+			// Draw the label sections
+			if (theHAxis != null)
+				theHAxis.drawLabelSection(screen, hLabelSection, false, hAxisTop);
+			if (theVAxis != null)
+				theVAxis.drawLabelSection(screen, vLabelSection, true, vAxisLeft);
+
+			// Draw the content graphics
+			try (QuickDrawScreen contentScreen = screen.subScreen(chartArea.x, chartArea.y, chartArea.width, chartArea.height)) {
+				if (theHAxis != null || theVAxis != null) {
+					float minX, maxX, minY, maxY;
+					if (theHAxis != null) {
+						minX = theHAxis.getAxis().getMin().get().floatValue();
+						maxX = theHAxis.getAxis().getMax().get().floatValue();
+					} else {
+						minX = 0;
+						maxX = chartArea.width;
+					}
+					if (theVAxis != null) {
+						minY = theVAxis.getAxis().getMin().get().floatValue();
+						maxY = theVAxis.getAxis().getMax().get().floatValue();
+					} else {
+						minY = 0;
+						maxY = chartArea.height;
+					}
+					try (QuickDrawScreen txScreen = QuickDrawToCoords.transform(contentScreen, chartArea.width, chartArea.height, minX,
+						minY, maxX - minX, maxY - minY, false)) {
+						if (txScreen != null)
+							super.drawInnerContents(txScreen);
+					}
+				} else
+					super.drawInnerContents(contentScreen);
+			}
+		}
+
+		@Override
+		protected Point2D.Float getHit(Point2D.Float point) {
+			Point2D.Float hit = null;
+			if (theHAxis != null)
+				hit = theHAxis.getHit(point);
+			if (hit == null && theVAxis != null)
+				hit = theVAxis.getHit(point);
+			if (hit == null)
+				hit = super.getHit(point);
+			return hit;
+		}
+
+		@Override
+		public QuickShapeInterpretation mouseEntered(MouseEvent e, Point2D.Float point) {
+			QuickShapeInterpretation hit = null;
+			if (theHAxis != null)
+				hit = theHAxis.mouseEntered(e, point);
+			if (hit == null && theVAxis != null)
+				hit = theVAxis.mouseEntered(e, point);
+			if (hit == null)
+				hit = super.mouseEntered(e, point);
+			return hit;
+		}
+
+		@Override
+		public QuickShapeInterpretation mouseMoved(MouseEvent e, Point2D.Float point) {
+			QuickShapeInterpretation hit = null;
+			if (theHAxis != null)
+				hit = theHAxis.mouseMoved(e, point);
+			if (hit == null && theVAxis != null)
+				hit = theVAxis.mouseMoved(e, point);
+			if (hit == null)
+				hit = super.mouseMoved(e, point);
+			return hit;
+		}
+
+		@Override
+		public void mouseDragged(MouseEvent e, Point2D.Float point) {
+			if (theHAxis != null)
+				theHAxis.mouseDragged(e, point);
+			if (theVAxis != null)
+				theVAxis.mouseDragged(e, point);
+			super.mouseDragged(e, point);
+		}
+
+		@Override
+		public void mouseExited(MouseEvent e, Point2D.Float point) {
+			if (theHAxis != null)
+				theHAxis.mouseExited(e, point);
+			if (theVAxis != null)
+				theVAxis.mouseExited(e, point);
+			super.mouseExited(e, point);
+		}
+
+		@Override
+		public Opacity mousePressed(MouseEvent e, Point2D.Float point) {
+			Opacity opacity = Opacity.None;
+			if (theHAxis != null)
+				opacity = theHAxis.mousePressed(e, point);
+			if (opacity != Opacity.Full && theVAxis != null)
+				opacity = theVAxis.mousePressed(e, point);
+			if (opacity != Opacity.Full)
+				opacity = super.mousePressed(e, point);
+			return opacity;
+		}
+
+		@Override
+		public Opacity mouseReleased(MouseEvent e, Point2D.Float point) {
+			Opacity opacity = Opacity.None;
+			if (theHAxis != null)
+				opacity = theHAxis.mouseReleased(e, point);
+			if (opacity != Opacity.Full && theVAxis != null)
+				opacity = theVAxis.mouseReleased(e, point);
+			if (opacity != Opacity.Full)
+				opacity = super.mouseReleased(e, point);
+			return opacity;
+		}
+
+		@Override
+		public Opacity mouseClicked(MouseEvent e, Point2D.Float point) {
+			Opacity opacity = Opacity.None;
+			if (theHAxis != null)
+				opacity = theHAxis.mouseClicked(e, point);
+			if (opacity != Opacity.Full && theVAxis != null)
+				opacity = theVAxis.mouseClicked(e, point);
+			if (opacity != Opacity.Full)
+				opacity = super.mouseClicked(e, point);
+			return opacity;
+		}
+
+		@Override
+		public Opacity mouseWheelMoved(MouseWheelEvent e, Point2D.Float point) {
+			Opacity opacity = Opacity.None;
+			if (theHAxis != null)
+				opacity = theHAxis.mouseWheelMoved(e, point);
+			if (opacity != Opacity.Full && theVAxis != null)
+				opacity = theVAxis.mouseWheelMoved(e, point);
+			if (opacity != Opacity.Full)
+				opacity = super.mouseWheelMoved(e, point);
+			return opacity;
+		}
 	}
 
-	static class InterpretedChartAxis<T> {
-		private final QuickChart.ChartAxis.Interpreted<T> theAxis;
+	static class InterpretedChartAxis<T extends Number> {
+		private final InterpretedText theLabel;
+		private final InterpretedChartLine<QuickChart.TickLine> theTickLine;
 
-		InterpretedChartAxis(Interpreted<T> axis, Transformer<ExpressoInterpretationException> tx) {
-			theAxis = axis;
+		InterpretedChartAxis(QuickChart.ChartAxis.Interpreted<T> axis, Transformer<ExpressoInterpretationException> tx)
+			throws ExpressoInterpretationException {
+			QuickDrawText.Interpreted label = axis.getLabel();
+			theLabel = label == null ? null : tx.transform(label, InterpretedText.class);
+			QuickChart.TickLine.Interpreted tickLine = axis.getTickLine();
+			theTickLine = tickLine == null ? null : tx.transform(tickLine, InterpretedChartLine.class);
 		}
 
-		QuickDrawChartAxis<T> interpret(QuickChart.ChartAxis<T> axis) {
-			return new QuickDrawChartAxis<>(axis);
+		QuickDrawChartAxis<T> interpret(QuickChart.ChartAxis<T> axis) throws ModelInstantiationException {
+			return new QuickDrawChartAxis<>(axis, //
+				theLabel == null ? null : theLabel.interpret(axis.getLabel()), //
+					theTickLine == null ? null : theTickLine.interpret(axis.getTickLine()));
 		}
 	}
 
-	static class QuickDrawChartAxis<T> {
+	static class QuickDrawChartAxis<T extends Number> {
+		public interface TickConsumer {
+			void onTick(int index, double tick, float relativePosition);
+		}
+
 		private final QuickChart.ChartAxis<T> theAxis;
+		private final QuickDrawSwingText theLabel;
+		private final QuickChartLine<QuickChart.TickLine> theTickLine;
 
-		QuickDrawChartAxis(ChartAxis<T> axis) {
+		private final ObservableValue<Color> theColor;
+		private final ObservableValue<Float> theOpacity;
+		private final ObservableValue<Double> theThickness;
+		private final ObservableValue<StrokeDashing> theDashing;
+
+		QuickDrawChartAxis(ChartAxis<T> axis, QuickDrawSwingText label, QuickChartLine<QuickChart.TickLine> tickLine) {
 			theAxis = axis;
+			theLabel = label;
+			theTickLine = tickLine;
+
+			theColor = axis.getStyle().getColor();
+			theOpacity = axis.getStyle().getOpacity();
+			theThickness = axis.getStyle().getThickness();
+			theDashing = axis.getStyle().getStrokeDash();
 		}
 
-		float getLabelSectionSize(boolean vertical) {
-			return 0;
+		public QuickChart.ChartAxis<T> getAxis() {
+			return theAxis;
 		}
 
-		void drawLabelSection(Graphics2D gfx, Rectangle2D.Float bounds) {
+		public Color getColor() {
+			Color color = theColor.get();
+			return color == null ? Color.black : color;
 		}
 
-		void drawChartSection(Graphics2D gfx, Rectangle2D.Float bounds) {
+		public float getOpacity() {
+			Float opacity = theOpacity.get();
+			return opacity == null ? 1.0f : opacity.floatValue();
+		}
+
+		public double getThickness() {
+			Double thickness = theThickness.get();
+			return thickness == null ? 2.0 : thickness.doubleValue();
+		}
+
+		public StrokeDashing getDashing() {
+			StrokeDashing dashing = theDashing.get();
+			return dashing == null ? StrokeDashing.full : dashing;
+		}
+
+		public void forEachTick(TickConsumer task) {
+			T min = theAxis.getMin().get();
+			T max = theAxis.getMax().get();
+			if (min == null || max == null || Objects.equals(min, max))
+				return;
+			float minD = min.floatValue();
+			float range = max.floatValue() - minD;
+			SettableValue<Double> tickValue = theAxis.getTickValue();
+			SettableValue<Integer> tickIndex = theAxis.getTickIndex();
+			int index = 0;
+			for (Double tick : theAxis.getScheme().getTicks(min.doubleValue(), max.doubleValue())) {
+				if (tickValue != null)
+					tickValue.set(tick);
+				if (tickIndex != null)
+					tickIndex.set(index);
+
+				float p = (tick.floatValue() - minD) / range;
+				task.onTick(index, tick, p);
+
+				index++;
+			}
+		}
+
+		float getLabelSectionSize(QuickDrawScreen screen, boolean vertical) {
+			if (!theAxis.isVisible().get())
+				return 0.0f;
+			float[] maxSize = new float[1];
+			forEachTick((i, t, p) -> {
+				float tickSize = 1 + (float) getThickness();
+				if (theTickLine != null)
+					tickSize += theTickLine.getShape().getLength().get();
+				if (theLabel != null) {
+					Rectangle2D.Float labelBounds = theLabel.getRotatedBounds(screen);
+					if (labelBounds != null)
+						tickSize += vertical ? labelBounds.width : labelBounds.height;
+				}
+				if (tickSize > maxSize[0])
+					maxSize[0] = tickSize;
+			});
+			return maxSize[0];
+		}
+
+		void drawLabelSection(QuickDrawScreen screen, Rectangle2D.Float bounds, boolean vertical, boolean leading) {
+			if (!theAxis.isVisible().get())
+				return;
+			float thickness = (float) getThickness();
+			float halfThickness = thickness / 2;
+			int[][] axisLine = new int[2][2];
+			if (vertical) {
+				int initX = (int) (screen.transformX(leading ? bounds.width : 0) + (leading ? -halfThickness : halfThickness));
+				axisLine[0][0] = axisLine[0][1] = initX;
+				axisLine[1][0] = (int) screen.transformX(0);
+				axisLine[1][1] = (int) screen.transformX(bounds.height);
+			} else {
+				int initY = (int) (screen.transformY(leading ? bounds.height : 0) + (leading ? -halfThickness : halfThickness));
+				axisLine[1][0] = axisLine[1][1] = initY;
+				axisLine[0][0] = (int) screen.transformX(0);
+				axisLine[0][1] = (int) screen.transformX(bounds.width);
+			}
+			QuickDrawLine.drawLine(screen.gfx(), getColor(), getOpacity(), thickness, getDashing(), axisLine);
+			float[][] tickPoints = new float[2][2];
+			forEachTick((i, t, p) -> {
+				if (vertical) { // Vertical axis
+					float y = bounds.y + p * bounds.height;
+					float x = bounds.x;
+					if (leading)
+						x += bounds.width - thickness;
+					else
+						x += thickness;
+					if (theTickLine != null) {
+						int tickLength = theTickLine.getShape().getLength().get();
+						tickPoints[1][0] = tickPoints[1][1] = y;
+						if (leading) {
+							tickPoints[0][0] = x - tickLength;
+							tickPoints[0][1] = x;
+							x -= tickLength;
+						} else {
+							tickPoints[0][0] = x;
+							tickPoints[0][1] = x + tickLength;
+							x += tickLength;
+						}
+						theTickLine.setVertices(tickPoints);
+						theTickLine.draw(screen);
+					}
+					x += (leading ? -1 : 1);
+					if (theLabel != null) {
+						Rectangle2D.Float labelBounds = theLabel.getRotatedBounds(screen);
+						if (labelBounds != null) {
+							int alignment = 0; // TODO get this from the <chart-tick-label> add-on
+							float labelX = x, labelY = y;
+							labelY -= 3; // I hate having to pad with magic numbers, but otherwise it clips
+							if (leading)
+								labelX -= labelBounds.width;
+							if (alignment < 0)
+								labelY -= labelBounds.height;
+							else if (alignment == 0)
+								labelY -= labelBounds.height / 2;
+							try (QuickDrawScreen labelScreen = screen.transform(labelX, labelY, 1f, 1f)) {
+								if (labelScreen != null)
+									theLabel.draw(labelScreen);
+							}
+						}
+					}
+				} else { // Horizontal axis
+					float x = bounds.x + p * bounds.width;
+					float y = bounds.y;
+					if (leading)
+						y += bounds.height - thickness;
+					else
+						y += thickness;
+					if (theTickLine != null) {
+						int tickLength = theTickLine.getShape().getLength().get();
+						tickPoints[0][0] = tickPoints[0][1] = x;
+						if (leading) {
+							tickPoints[1][0] = y - tickLength;
+							tickPoints[1][1] = y;
+							y -= tickLength;
+						} else {
+							tickPoints[1][0] = y;
+							tickPoints[1][1] = y + tickLength;
+							y += tickLength;
+						}
+						theTickLine.setVertices(tickPoints);
+						theTickLine.draw(screen);
+					}
+					y += (leading ? -1 : 1);
+					if (theLabel != null) {
+						Rectangle2D.Float labelBounds = theLabel.getRotatedBounds(screen);
+						if (labelBounds != null) {
+							int alignment = 0; // TODO get this from the <chart-tick-label> add-on
+							float labelX = x, labelY = y;
+							labelY -= 2; // I hate having to pad with magic numbers, but otherwise it clips
+							if (leading)
+								labelY -= labelBounds.height;
+							if (alignment < 0)
+								labelX -= labelBounds.width;
+							else if (alignment == 0)
+								labelX -= labelBounds.width / 2;
+							try (QuickDrawScreen labelScreen = screen.transform(labelX, labelY, 1f, 1f)) {
+								theLabel.draw(labelScreen);
+							}
+						}
+					}
+				}
+			});
+		}
+
+		Point2D.Float getHit(Point2D.Float point) {
+			if (!theAxis.isVisible().get())
+				return null;
+			// TODO
+			return null;
+		}
+
+		QuickShapeInterpretation mouseEntered(MouseEvent e, Point2D.Float point) {
+			if (!theAxis.isVisible().get())
+				return null;
+			// TODO
+			return null;
+		}
+
+		QuickShapeInterpretation mouseMoved(MouseEvent e, Point2D.Float point) {
+			if (!theAxis.isVisible().get())
+				return null;
+			// TODO
+			return null;
+		}
+
+		void mouseDragged(MouseEvent e, Point2D.Float point) {
+			if (!theAxis.isVisible().get())
+				return;
+			// TODO
+			return;
+		}
+
+		void mouseExited(MouseEvent e, Point2D.Float point) {
+			if (!theAxis.isVisible().get())
+				return;
+			// TODO
+			return;
+		}
+
+		Opacity mousePressed(MouseEvent e, Point2D.Float point) {
+			if (!theAxis.isVisible().get())
+				return Opacity.None;
+			// TODO
+			return Opacity.None;
+		}
+
+		Opacity mouseReleased(MouseEvent e, Point2D.Float point) {
+			if (!theAxis.isVisible().get())
+				return Opacity.None;
+			// TODO
+			return Opacity.None;
+		}
+
+		Opacity mouseClicked(MouseEvent e, Point2D.Float point) {
+			if (!theAxis.isVisible().get())
+				return Opacity.None;
+			// TODO
+			return Opacity.None;
+		}
+
+		Opacity mouseWheelMoved(MouseWheelEvent e, Point2D.Float point) {
+			if (!theAxis.isVisible().get())
+				return Opacity.None;
+			// TODO
+			return Opacity.None;
+		}
+	}
+
+	static class InterpretedChartLine<L extends QuickLinearShape> {
+		InterpretedChartLine(QuickLinearShape.Interpreted<L> gridLine, Transformer<ExpressoInterpretationException> tx) {
+		}
+
+		QuickChartLine<L> interpret(L gridLine) {
+			return new QuickChartLine<>(gridLine);
+		}
+	}
+
+	static class QuickChartLine<L extends QuickLinearShape> extends AbstractLine<L> {
+		private float[][] theVertices;
+
+		QuickChartLine(L shape) {
+			super(shape);
+			theVertices = new float[2][2];
+		}
+
+		@Override
+		public float[][] getVertices() {
+			return theVertices;
+		}
+
+		public void setVertices(float[][] vertices) {
+			theVertices = vertices;
+		}
+	}
+
+	static class InterpretedGridLines implements InterpretedQuickShapePublisher<QuickChart.GridLines> {
+		InterpretedGridLines(QuickChart.GridLines.Interpreted gridLines, Transformer<ExpressoInterpretationException> tx) {
+		}
+
+		@Override
+		public QuickDrawShapePublisher interpret(QuickChart.GridLines element) throws ModelInstantiationException {
+			return new QuickSwingGridLines(element);
+		}
+	}
+
+	static class QuickSwingGridLines extends QuickDrawLinearShape<QuickChart.GridLines> {
+		private QuickDrawChartAxis<?> theHAxis;
+		private QuickDrawChartAxis<?> theVAxis;
+
+		QuickSwingGridLines(QuickChart.GridLines shape) {
+			super(shape);
+		}
+
+		public void setAxes(QuickDrawChartAxis<?> hAxis, QuickDrawChartAxis<?> vAxis) {
+			theHAxis = hAxis;
+			theVAxis = vAxis;
+		}
+
+		@Override
+		public void draw(QuickDrawScreen screen) {
+			if (theHAxis == null && theVAxis == null) {
+				if (getShape().getParentElement() instanceof QuickChart)
+					getShape().reporting().warn("No axes mean no grid lines");
+				else
+					getShape().reporting().warn("This type is only applicable for content in a <chart>");
+				return;
+			}
+			if (theHAxis != null)
+				drawGridLines(theHAxis, screen, false);
+			if (theVAxis != null)
+				drawGridLines(theVAxis, screen, true);
+		}
+
+		@Override
+		public Point2D.Float hit(Point2D.Float containerPoint) {
+			return null; // TODO
+		}
+
+		void drawGridLines(QuickDrawChartAxis<?> axis, QuickDrawScreen screen, boolean verticalAxis) {
+			SettableValue<Boolean> verticalLine = getShape().getVerticalLine();
+			if (verticalLine != null)
+				verticalLine.set(!verticalAxis);
+			SettableValue<Double> tickValueAs = getShape().getTickValueAs();
+			SettableValue<Integer> tickIndexAs = getShape().getTickIndexAs();
+
+			int[][] points = new int[2][2];
+			if (verticalAxis) {
+				points[0][0] = (int) screen.transformX(0);
+				points[0][1] = (int) screen.transformX(screen.getWidth());
+			} else {
+				points[1][0] = (int) screen.transformY(0);
+				points[1][1] = (int) screen.transformY(screen.getHeight());
+			}
+			axis.forEachTick((i, tick, p) -> {
+				if (verticalAxis)
+					points[1][0] = points[1][1] = (int) screen.transformY(p * screen.getHeight());
+				else
+					points[0][0] = points[0][1] = (int) screen.transformX(p * screen.getWidth());
+
+				if (tickValueAs != null)
+					tickValueAs.set(tick);
+				if (tickIndexAs != null)
+					tickIndexAs.set(i);
+
+				AbstractLine.drawLine(screen.gfx(), getColor(), getOpacity(), getThickness(), getStrokeDash(), points);
+			});
 		}
 	}
 }

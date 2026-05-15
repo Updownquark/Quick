@@ -134,7 +134,7 @@ public interface QuickBorderedShape extends QuickShape, QuickWithStroke {
 		}
 
 		public static interface Interpreted
-			extends QuickShapeStyle.Interpreted, QuickStrokeStyle.Interpreted, QuickBorder.QuickBorderStyle.Interpreted {
+		extends QuickShapeStyle.Interpreted, QuickStrokeStyle.Interpreted, QuickBorder.QuickBorderStyle.Interpreted {
 			@Override
 			Def getDefinition();
 
@@ -189,7 +189,7 @@ public interface QuickBorderedShape extends QuickShape, QuickWithStroke {
 			}
 		}
 
-		public static class Default extends QuickShapeStyle.Default implements QuickStrokeStyle, QuickBorderedShapeStyle {
+		public static class Default extends QuickShapeStyle.Default implements QuickBorderedShapeStyle {
 			private QuickStyleAttribute<StrokeDashing> theStrokeDashAttr;
 			private QuickStyleAttribute<Color> theBorderColorAttr;
 			private QuickStyleAttribute<Integer> theBorderThicknessAttr;

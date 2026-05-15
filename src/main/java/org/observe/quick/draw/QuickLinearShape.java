@@ -29,7 +29,9 @@ public interface QuickLinearShape extends QuickShape, QuickLinearDrawing {
 		QuickLineShapeStyle.Def wrap(QuickInstanceStyle.Def parentStyle, QuickCompiledStyle style);
 
 		@Override
-		QuickLineShapeStyle.Def getStyle();
+		default QuickLineShapeStyle.Def getStyle() {
+			return (QuickLineShapeStyle.Def) QuickLinearDrawing.Def.super.getStyle();
+		}
 
 		@Override
 		Interpreted<? extends E> interpret(ExElement.Interpreted<?> parent);
@@ -60,7 +62,9 @@ public interface QuickLinearShape extends QuickShape, QuickLinearDrawing {
 		QuickLinearShape.Def<? super E> getDefinition();
 
 		@Override
-		public QuickLineShapeStyle.Interpreted getStyle();
+		default QuickLineShapeStyle.Interpreted getStyle() {
+			return (QuickLineShapeStyle.Interpreted) QuickLinearDrawing.Interpreted.super.getStyle();
+		}
 
 		@Override
 		public abstract E create();
@@ -84,7 +88,9 @@ public interface QuickLinearShape extends QuickShape, QuickLinearDrawing {
 	}
 
 	@Override
-	public QuickLineShapeStyle getStyle();
+	default QuickLineShapeStyle getStyle() {
+		return (QuickLineShapeStyle) QuickLinearDrawing.super.getStyle();
+	}
 
 	@Override
 	public QuickLinearShape copy(ExElement parent);

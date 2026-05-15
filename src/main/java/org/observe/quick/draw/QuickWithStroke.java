@@ -20,7 +20,9 @@ public interface QuickWithStroke extends QuickStyledElement {
 		QuickStrokeStyle.Def wrap(QuickInstanceStyle.Def parentStyle, QuickCompiledStyle style);
 
 		@Override
-		QuickStrokeStyle.Def getStyle();
+		default QuickStrokeStyle.Def getStyle() {
+			return (QuickStrokeStyle.Def) QuickStyledElement.Def.super.getStyle();
+		}
 
 		Interpreted<? extends E> interpret(ExElement.Interpreted<?> parent);
 	}
@@ -30,13 +32,17 @@ public interface QuickWithStroke extends QuickStyledElement {
 		QuickWithStroke.Def<? super E> getDefinition();
 
 		@Override
-		public QuickStrokeStyle.Interpreted getStyle();
+		default QuickStrokeStyle.Interpreted getStyle() {
+			return (QuickStrokeStyle.Interpreted) QuickStyledElement.Interpreted.super.getStyle();
+		}
 
 		public abstract E create();
 	}
 
 	@Override
-	public QuickStrokeStyle getStyle();
+	default QuickStrokeStyle getStyle() {
+		return (QuickStrokeStyle) QuickStyledElement.super.getStyle();
+	}
 
 	@Override
 	public QuickWithStroke copy(ExElement parent);

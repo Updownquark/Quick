@@ -245,12 +245,9 @@ public class QuickStyled extends ExAddOn.Abstract<ExElement> {
 
 		QuickStyled.Interpreted myInterpreted = (QuickStyled.Interpreted) interpreted;
 
-		ExElement parent = element.getParentElement();
-		while (parent != null && parent.getAddOn(QuickStyled.class) != null)
-			parent = parent.getParentElement();
 		if (theStyle == null)
 			theStyle = myInterpreted.getStyle().create(this);
-		theStyle.update(myInterpreted.getStyle(), parent == null ? null : parent.getAddOn(QuickStyled.class));
+		theStyle.update(myInterpreted.getStyle(), this);
 
 		CollectionUtils
 		.synchronize(theStyleElements, myInterpreted.getStyleElements(), (inst, interp) -> inst.getIdentity() == interp.getIdentity())//
