@@ -3902,15 +3902,16 @@ public class QuickDrawSwing implements QuickInterpretation {
 			float halfThickness = thickness / 2;
 			int[][] axisLine = new int[2][2];
 			if (vertical) {
-				int initX = (int) (screen.transformX(leading ? bounds.width : 0) + (leading ? -halfThickness : halfThickness));
+				int initX = (int) (screen.transformX(bounds.x + (leading ? bounds.width : 0)) + (leading ? -halfThickness : halfThickness));
 				axisLine[0][0] = axisLine[0][1] = initX;
-				axisLine[1][0] = (int) screen.transformX(0);
-				axisLine[1][1] = (int) screen.transformX(bounds.height);
+				axisLine[1][0] = (int) screen.transformX(bounds.y);
+				axisLine[1][1] = (int) screen.transformX(bounds.y + bounds.height);
 			} else {
-				int initY = (int) (screen.transformY(leading ? bounds.height : 0) + (leading ? -halfThickness : halfThickness));
+				int initY = (int) (screen.transformY(bounds.y + (leading ? bounds.height : 0))
+					+ (leading ? -halfThickness : halfThickness));
 				axisLine[1][0] = axisLine[1][1] = initY;
-				axisLine[0][0] = (int) screen.transformX(0);
-				axisLine[0][1] = (int) screen.transformX(bounds.width);
+				axisLine[0][0] = (int) screen.transformX(bounds.x);
+				axisLine[0][1] = (int) screen.transformX(bounds.x + bounds.width);
 			}
 			QuickDrawLine.drawLine(screen.gfx(), getColor(), getOpacity(), thickness, getDashing(), axisLine);
 			float[][] tickPoints = new float[2][2];
