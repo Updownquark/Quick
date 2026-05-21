@@ -1896,7 +1896,7 @@ public interface QuickTableColumn<R, C> {
 			ThreadConstraint threading = values.getThreadConstraint();
 			ModelSetInstance fModels = myModels;
 			CollectionSubscription valueSub = values.subscribe(evt -> {
-				try (Transaction t = columns.lock(true, evt)) {
+				try (Transaction t = columns.lockWrite(false, evt)) {
 					switch (evt.getType()) {
 					case add:
 						SimpleObservable<Void> elementModelUntil = SimpleObservable.build()//
@@ -2007,7 +2007,7 @@ public interface QuickTableColumn<R, C> {
 					if (theCallbackLock)
 						return;
 					theCallbackLock = true;
-					try (Transaction t = columnValues.lock(true, evt)) {
+					try (Transaction t = columnValues.lockWrite(false, evt)) {
 						columnValues.mutableElement(element).set(evt.getNewValue());
 					} finally {
 						theCallbackLock = false;

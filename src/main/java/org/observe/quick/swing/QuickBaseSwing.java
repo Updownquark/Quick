@@ -52,13 +52,13 @@ import org.observe.expresso.ExpressoInterpretationException;
 import org.observe.expresso.ModelInstantiationException;
 import org.observe.expresso.qonfig.ExAddOn;
 import org.observe.expresso.qonfig.ExElement;
-import org.observe.quick.QuickSize;
 import org.observe.quick.Iconized;
 import org.observe.quick.MouseCursor;
 import org.observe.quick.Positionable;
 import org.observe.quick.QuickAbstractWindow;
 import org.observe.quick.QuickDialog;
 import org.observe.quick.QuickInterpretation;
+import org.observe.quick.QuickSize;
 import org.observe.quick.QuickTextWidget;
 import org.observe.quick.QuickWidget;
 import org.observe.quick.Sizeable;
@@ -806,8 +806,8 @@ public class QuickBaseSwing implements QuickInterpretation {
 			.act(evt -> {
 				BiTuple<QuickSize, QuickSize> min = evt.getNewValue();
 				Dimension parentSize = getParent() == null ? new Dimension(0, 0) : getParent().getSize();
-					setSize.accept(
-						new Dimension(min.getValue1().evaluateInt(parentSize.width), min.getValue2().evaluateInt(parentSize.height)));
+				setSize.accept(
+					new Dimension(min.getValue1().evaluateInt(parentSize.width), min.getValue2().evaluateInt(parentSize.height)));
 			});
 		}
 	}
@@ -1188,10 +1188,10 @@ public class QuickBaseSwing implements QuickInterpretation {
 						int endOffset = endNode == null ? 0 : selEnd - endNode.getStart();
 						selectionCallbackLock[0] = true;
 						try (Causable.CausableInUse cause = Causable.cause(e);
-							Transaction svt = selectionStartValue.lock(true, cause);
-							Transaction sot = selectionStartOffset.lock(true, cause);
-							Transaction evt = selectionEndValue.lock(true, cause);
-							Transaction eot = selectionEndOffset.lock(true, cause)) {
+							Transaction svt = selectionStartValue.lockWrite(false, cause);
+							Transaction sot = selectionStartOffset.lockWrite(false, cause);
+							Transaction evt = selectionEndValue.lockWrite(false, cause);
+							Transaction eot = selectionEndOffset.lockWrite(false, cause)) {
 							selectionStartValue.set(startNode == null ? null : startNode.getValue(), cause);
 							if (selectionStartOffset.isAcceptable(startOffset) == null)
 								selectionStartOffset.set(startOffset, cause);

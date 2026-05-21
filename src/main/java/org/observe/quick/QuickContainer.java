@@ -162,7 +162,7 @@ public interface QuickContainer<W extends QuickWidget> extends QuickWidget {
 			super.doUpdate(interpreted);
 
 			QuickContainer.Interpreted<?, W> myInterpreted = (QuickContainer.Interpreted<?, W>) interpreted;
-			try (Transaction t = theContents.lock(true, null)) {
+			try (Transaction t = theContents.lockWrite(false, null)) {
 				CollectionUtils.synchronize(theContents, myInterpreted.getContents(), //
 					(widget, child) -> widget.getIdentity() == child.getIdentity())//
 				.<ModelInstantiationException> simpleX(child -> (W) child.create())//

@@ -593,7 +593,7 @@ public class Qwysiwyg {
 				}
 				if (theStyledNode != null) {
 					QuickStyledElement styled = (QuickStyledElement) theStyledNode.element;
-					try (Transaction t = availableStyles.lock(true, evt)) {
+					try (Transaction t = availableStyles.lockWrite(false, evt)) {
 						CollectionUtils.synchronize(availableStyles, new ArrayList<>(styled.getStyle().getApplicableAttributes()))//
 						.simple(FunctionUtils.identity())//
 						.adjust();
@@ -978,10 +978,10 @@ public class Qwysiwyg {
 
 	void goTo(DocumentComponent target) {
 		try (Causable.CausableInUse cause = Causable.cause(); //
-			Transaction vt = selectedNode.lock(true, cause);
-			Transaction vt2 = selectedEndNode.lock(true, cause); //
-			Transaction sit = selectedStartIndex.lock(true, cause);
-			Transaction eit = selectedEndIndex.lock(true, cause)) {
+			Transaction vt = selectedNode.lockWrite(false, cause);
+			Transaction vt2 = selectedEndNode.lockWrite(false, cause); //
+			Transaction sit = selectedStartIndex.lockWrite(false, cause);
+			Transaction eit = selectedEndIndex.lockWrite(false, cause)) {
 			selectedNode.set(target, cause);
 			selectedEndNode.set(target, cause);
 			selectedStartIndex.set(0, cause);

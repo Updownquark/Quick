@@ -1,5 +1,6 @@
 package org.observe.quick.style;
 
+import java.awt.Image;
 import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -7,8 +8,6 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-
-import javax.swing.Icon;
 
 import org.observe.SettableValue;
 import org.observe.expresso.CompiledExpressoEnv;
@@ -641,7 +640,7 @@ public class QuickStyleElement<T> extends ExElement.Abstract {
 
 		private InterpretedValueSynth<SettableValue<?>, SettableValue<T>> interpretStyleValue(LocatedExpression valueExpression,
 			ModelInstanceType.SingleTyped<SettableValue<?>, T, SettableValue<T>> type) throws ExpressoInterpretationException {
-			if (TypeTokens.getRawType(type.getType(0)) == Icon.class)
+			if (TypeTokens.getRawType(type.getType(0)) == Image.class)
 				return (InterpretedValueSynth<SettableValue<?>, SettableValue<T>>) (InterpretedValueSynth<?, ?>) QuickStyleUtils
 					.evaluateIcon(valueExpression, getEnvironmentFor(valueExpression));
 			else

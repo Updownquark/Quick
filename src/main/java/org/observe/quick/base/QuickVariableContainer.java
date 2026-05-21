@@ -315,7 +315,7 @@ public abstract class QuickVariableContainer extends QuickContainer.Abstract<Qui
 				theValue = SettableValue.create(b -> b.withValue(tabId));
 				theRendererInstance = renderer;
 				theValueSub = theValue.noInitChanges().filter(__ -> !isUpdating && theValueEl.isPresent()).act(evt -> {
-					try (Transaction t = theFlatValues.lock(true, evt)) {
+					try (Transaction t = theFlatValues.lockWrite(false, evt)) {
 						theFlatValues.mutableElement(theValueEl).set(evt.getNewValue());
 					}
 				});

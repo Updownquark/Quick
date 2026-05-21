@@ -41,6 +41,7 @@ import javax.swing.SwingUtilities;
 import org.observe.Observable;
 import org.observe.ObservableValue;
 import org.observe.SettableValue;
+import org.observe.SettableValue.Setter;
 import org.observe.collect.ObservableCollection;
 import org.observe.expresso.ExpressoInterpretationException;
 import org.observe.expresso.ModelInstantiationException;
@@ -1298,14 +1299,18 @@ public class QuickDrawSwing implements QuickInterpretation {
 			try {
 				SettableValue<T> activeValue = theCollection.getActiveValue();
 				SettableValue<Integer> activeIndex = theCollection.getActiveValueIndex();
-				int i = 0;
-				for (ListElement<T> value = theCollection.getValues().getTerminalElement(true); //
-					value != null; value = value.getAdjacent(true)) {
-					theCurrentValue = value;
-					activeValue.set(value.get());
-					activeIndex.set(i);
-					super.draw(screen);
-					i++;
+				try (Setter<T> valueSetter = activeValue.lockWrite(false, null); //
+					Setter<Integer> indexSetter = activeIndex.lockWrite(false, null); //
+					Transaction ct = theCollection.getValues().lock(false)) {
+					int i = 0;
+					for (ListElement<T> value = theCollection.getValues().getTerminalElement(true); //
+						value != null; value = value.getAdjacent(true)) {
+						theCurrentValue = value;
+						valueSetter.set(value.get());
+						indexSetter.set(i);
+						super.draw(screen);
+						i++;
+					}
 				}
 			} finally {
 				isInAction = false;
@@ -1321,12 +1326,14 @@ public class QuickDrawSwing implements QuickInterpretation {
 			SettableValue<Integer> activeIndex = theCollection.getActiveValueIndex();
 			int i = theCollection.getValues().size() - 1;
 			isInAction = true;
-			try {
+			try (Setter<T> valueSetter = activeValue.lockWrite(false, null); //
+				Setter<Integer> indexSetter = activeIndex.lockWrite(false, null); //
+				Transaction ct = theCollection.getValues().lock(false)) {
 				for (ListElement<T> valueEl = theCollection.getValues().getTerminalElement(false); //
 					valueEl != null; valueEl = valueEl.getAdjacent(false)) {
 					theCurrentValue = valueEl;
-					activeValue.set(valueEl.get());
-					activeIndex.set(i);
+					valueSetter.set(valueEl.get());
+					indexSetter.set(i);
 					for (CollectionElement<QuickShapeInterpretation> shapeEl = getContents().getTerminalElement(false); shapeEl != null; //
 						shapeEl = shapeEl.getAdjacent(false)) {
 						Point2D.Float hit = shapeEl.get().hit(point);
@@ -1365,12 +1372,14 @@ public class QuickDrawSwing implements QuickInterpretation {
 			SettableValue<Integer> activeIndex = theCollection.getActiveValueIndex();
 			int i = theCollection.getValues().size() - 1;
 			isInAction = true;
-			try {
+			try (Setter<T> valueSetter = activeValue.lockWrite(false, null); //
+				Setter<Integer> indexSetter = activeIndex.lockWrite(false, null); //
+				Transaction ct = theCollection.getValues().lock(false)) {
 				for (ListElement<T> valueEl = theCollection.getValues().getTerminalElement(false); //
 					opacity != Opacity.Full && valueEl != null; valueEl = valueEl.getAdjacent(false)) {
 					theCurrentValue = valueEl;
-					activeValue.set(valueEl.get());
-					activeIndex.set(i);
+					valueSetter.set(valueEl.get());
+					indexSetter.set(i);
 					Opacity valueOpacity = super.mousePressed(e, point);
 					if (valueOpacity != Opacity.None)
 						focusEl = valueEl;
@@ -1389,20 +1398,24 @@ public class QuickDrawSwing implements QuickInterpretation {
 			Iterator<BiTuple<ElementId, ElementId>> hovered = theHovered.iterator();
 			SettableValue<T> activeValue = theCollection.getActiveValue();
 			SettableValue<Integer> activeIndex = theCollection.getActiveValueIndex();
-			while (hovered.hasNext()) {
-				BiTuple<ElementId, ElementId> el = hovered.next();
-				if (!el.getValue1().isPresent() || !el.getValue2().isPresent())
-					continue;
-				ListElement<T> valueEl = theCollection.getValues().getElement(el.getValue1());
-				theCurrentValue = valueEl;
-				activeValue.set(valueEl.get());
-				activeIndex.set(valueEl.getElementsBefore());
-				ListElement<QuickShapeInterpretation> shape = getContents().getElement(el.getValue2());
-				setState(shape);
-				Point2D.Float hit = shape.get().hit(point);
-				hovered.remove();
-				setState(shape);
-				shape.get().mouseExited(asType(e, MouseEvent.MOUSE_EXITED), hit);
+			try (Setter<T> valueSetter = activeValue.lockWrite(false, null); //
+				Setter<Integer> indexSetter = activeIndex.lockWrite(false, null); //
+				Transaction ct = theCollection.getValues().lock(false)) {
+				while (hovered.hasNext()) {
+					BiTuple<ElementId, ElementId> el = hovered.next();
+					if (!el.getValue1().isPresent() || !el.getValue2().isPresent())
+						continue;
+					ListElement<T> valueEl = theCollection.getValues().getElement(el.getValue1());
+					theCurrentValue = valueEl;
+					valueSetter.set(valueEl.get());
+					indexSetter.set(valueEl.getElementsBefore());
+					ListElement<QuickShapeInterpretation> shape = getContents().getElement(el.getValue2());
+					setState(shape);
+					Point2D.Float hit = shape.get().hit(point);
+					hovered.remove();
+					setState(shape);
+					shape.get().mouseExited(asType(e, MouseEvent.MOUSE_EXITED), hit);
+				}
 			}
 		}
 
@@ -1414,12 +1427,14 @@ public class QuickDrawSwing implements QuickInterpretation {
 			SettableValue<Integer> activeIndex = theCollection.getActiveValueIndex();
 			int i = theCollection.getValues().size() - 1;
 			isInAction = true;
-			try {
+			try (Setter<T> valueSetter = activeValue.lockWrite(false, null); //
+				Setter<Integer> indexSetter = activeIndex.lockWrite(false, null); //
+				Transaction ct = theCollection.getValues().lock(false)) {
 				for (ListElement<T> valueEl = theCollection.getValues().getTerminalElement(false); //
 					opacity != Opacity.Full && valueEl != null; valueEl = valueEl.getAdjacent(false)) {
 					theCurrentValue = valueEl;
-					activeValue.set(valueEl.get());
-					activeIndex.set(i);
+					valueSetter.set(valueEl.get());
+					indexSetter.set(i);
 					opacity = opacity.or(super.mouseAction(e, point, action));
 					i--;
 				}
@@ -1463,13 +1478,15 @@ public class QuickDrawSwing implements QuickInterpretation {
 			isInAction = true;
 			SettableValue<T> activeValue = theCollection.getActiveValue();
 			SettableValue<Integer> activeIndex = theCollection.getActiveValueIndex();
-			try {
+			try (Setter<T> valueSetter = activeValue.lockWrite(false, null); //
+				Setter<Integer> indexSetter = activeIndex.lockWrite(false, null); //
+				Transaction ct = theCollection.getValues().lock(false)) {
 				for (BiTuple<ElementId, ElementId> hovered : theHovered.reverse()) {
 					ListElement<T> valueEl = theCollection.getValues().getElement(hovered.getValue1());
 					theCurrentValue = valueEl;
 					QuickShapeInterpretation shape = getContents().getElement(hovered.getValue2()).get();
-					activeValue.set(valueEl.get());
-					activeIndex.set(valueEl.getElementsBefore());
+					valueSetter.set(valueEl.get());
+					indexSetter.set(valueEl.getElementsBefore());
 					String tooltip = shape.getTooltip();
 					if (tooltip != null)
 						return tooltip;
@@ -1531,12 +1548,16 @@ public class QuickDrawSwing implements QuickInterpretation {
 		public void draw(QuickDrawScreen screen) {
 			SettableValue<T> activeValue = theCollection.getActiveValue();
 			SettableValue<Integer> activeIndex = theCollection.getActiveValueIndex();
-			int i = 0;
-			for (T value : theCollection.getValues()) {
-				activeValue.set(value);
-				activeIndex.set(i);
-				super.draw(screen);
-				i++;
+			try (Setter<T> valueSetter = activeValue.lockWrite(false, null); //
+				Setter<Integer> indexSetter = activeIndex.lockWrite(false, null); //
+				Transaction ct = theCollection.getValueChanges().lock(false)) {
+				int i = 0;
+				for (T value : theCollection.getValues()) {
+					valueSetter.set(value);
+					indexSetter.set(i);
+					super.draw(screen);
+					i++;
+				}
 			}
 		}
 
@@ -1548,22 +1569,26 @@ public class QuickDrawSwing implements QuickInterpretation {
 			boolean done = false;
 			SettableValue<T> activeValue = theCollection.getActiveValue();
 			SettableValue<Integer> activeIndex = theCollection.getActiveValueIndex();
-			int i = theCollection.getValues().size() - 1;
-			for (ListIterator<T> iter = theCollection.getValues().listIterator(i + 1); iter.hasPrevious();) {
-				activeValue.set(iter.previous());
-				activeIndex.set(i);
-				for (CollectionElement<QuickShapeInterpretation> shapeEl = getContents().getTerminalElement(false); shapeEl != null; //
-					shapeEl = shapeEl.getAdjacent(false)) {
-					Point2D.Float hit = shapeEl.get().hit(point);
-					if (done) { // We don't have enough info to support enter/exit
-					} else if (hit != null) {
-						QuickShapeInterpretation target = shapeEl.get().mouseMoved(asType(e, MouseEvent.MOUSE_MOVED), hit);
-						if (first == null)
-							first = target;
-						done = shapeEl.get().getOpacity(hit) == Opacity.Full;
+			try (Setter<T> valueSetter = activeValue.lockWrite(false, null); //
+				Setter<Integer> indexSetter = activeIndex.lockWrite(false, null); //
+				Transaction ct = theCollection.getValueChanges().lock(false)) {
+				int i = theCollection.getValues().size() - 1;
+				for (ListIterator<T> iter = theCollection.getValues().listIterator(i + 1); iter.hasPrevious();) {
+					valueSetter.set(iter.previous());
+					indexSetter.set(i);
+					for (CollectionElement<QuickShapeInterpretation> shapeEl = getContents().getTerminalElement(false); shapeEl != null; //
+						shapeEl = shapeEl.getAdjacent(false)) {
+						Point2D.Float hit = shapeEl.get().hit(point);
+						if (done) { // We don't have enough info to support enter/exit
+						} else if (hit != null) {
+							QuickShapeInterpretation target = shapeEl.get().mouseMoved(asType(e, MouseEvent.MOUSE_MOVED), hit);
+							if (first == null)
+								first = target;
+							done = shapeEl.get().getOpacity(hit) == Opacity.Full;
+						}
 					}
+					i--;
 				}
-				i--;
 			}
 			return first;
 		}
@@ -1575,13 +1600,17 @@ public class QuickDrawSwing implements QuickInterpretation {
 				return opacity;
 			SettableValue<T> activeValue = theCollection.getActiveValue();
 			SettableValue<Integer> activeIndex = theCollection.getActiveValueIndex();
-			int i = theCollection.getValues().size() - 1;
-			for (ListIterator<T> iter = theCollection.getValues().listIterator(i + 1); opacity != Opacity.Full && iter.hasPrevious();) {
-				activeValue.set(iter.previous());
-				activeIndex.set(i);
-				Opacity valueOpacity = super.mousePressed(e, point);
-				opacity = opacity.or(valueOpacity);
-				i--;
+			try (Setter<T> valueSetter = activeValue.lockWrite(false, null); //
+				Setter<Integer> indexSetter = activeIndex.lockWrite(false, null); //
+				Transaction ct = theCollection.getValueChanges().lock(false)) {
+				int i = theCollection.getValues().size() - 1;
+				for (ListIterator<T> iter = theCollection.getValues().listIterator(i + 1); opacity != Opacity.Full && iter.hasPrevious();) {
+					valueSetter.set(iter.previous());
+					indexSetter.set(i);
+					Opacity valueOpacity = super.mousePressed(e, point);
+					opacity = opacity.or(valueOpacity);
+					i--;
+				}
 			}
 			return opacity;
 		}
@@ -1594,12 +1623,16 @@ public class QuickDrawSwing implements QuickInterpretation {
 				return opacity;
 			SettableValue<T> activeValue = theCollection.getActiveValue();
 			SettableValue<Integer> activeIndex = theCollection.getActiveValueIndex();
-			int i = theCollection.getValues().size() - 1;
-			for (ListIterator<T> iter = theCollection.getValues().listIterator(i + 1); opacity != Opacity.Full && iter.hasPrevious();) {
-				activeValue.set(iter.previous());
-				activeIndex.set(i);
-				opacity = opacity.or(super.mouseAction(e, point, action));
-				i--;
+			try (Setter<T> valueSetter = activeValue.lockWrite(false, null); //
+				Setter<Integer> indexSetter = activeIndex.lockWrite(false, null); //
+				Transaction ct = theCollection.getValueChanges().lock(false)) {
+				int i = theCollection.getValues().size() - 1;
+				for (ListIterator<T> iter = theCollection.getValues().listIterator(i + 1); opacity != Opacity.Full && iter.hasPrevious();) {
+					valueSetter.set(iter.previous());
+					indexSetter.set(i);
+					opacity = opacity.or(super.mouseAction(e, point, action));
+					i--;
+				}
 			}
 			return opacity;
 		}

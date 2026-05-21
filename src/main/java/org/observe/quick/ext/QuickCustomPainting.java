@@ -112,8 +112,8 @@ public class QuickCustomPainting implements QuickShading {
 				if (theImage == null || theImage.getWidth() < cellWP2 || theImage.getHeight() < cellHP2)
 					theImage = new BufferedImage(cellWP2, cellHP2, BufferedImage.TYPE_INT_ARGB);
 				try (Causable.CausableInUse cause = Causable.cause(); //
-					Transaction xt = thePixelX.lock(true, cause); //
-					Transaction yt = thePixelY.lock(true, cause)) {
+					Transaction xt = thePixelX.lockWrite(false, cause); //
+					Transaction yt = thePixelY.lockWrite(false, cause)) {
 					if (!Objects.equals(cellWP2, theContainerWidth.get()))
 						theContainerWidth.set(cellWP2, cause);
 					if (!Objects.equals(cellHP2, theContainerHeight.get()))

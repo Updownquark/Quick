@@ -560,13 +560,13 @@ public abstract class QuickOsgiComponent {
 			ObservableCollection<T> serviceCopy = ObservableCollection.<T> build()//
 				.withThreadConstraint(ThreadConstraint.EDT)//
 				.build();
-			try (Transaction t = serviceValues.lock(false, null)) {
+			try (Transaction t = serviceValues.lock(false)) {
 				if (!serviceValues.isEmpty()) {
 					getThreading().invoke(() -> serviceCopy.addAll(QommonsUtils.unmodifiableCopy(serviceValues)));
 				}
 				serviceValues.changes().takeUntil(getUntil()).act(evt -> {
 					getThreading().invoke(() -> {
-						try (Transaction t2 = serviceCopy.lock(true, Causable.broken(evt))) {
+						try (Transaction t2 = serviceCopy.lockWrite(false, Causable.broken(evt))) {
 							switch (evt.type) {
 							case add:
 								for (CollectionChangeEvent.ElementChange<T> change : evt.elements) {

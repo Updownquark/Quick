@@ -604,13 +604,13 @@ public class QuickCoreSwing implements QuickInterpretation {
 							if (oldH == newH)
 								return;
 							else
-								lock = sl.getHeight().lock(true, cause);
+								lock = sl.getHeight().lockWrite(false, cause);
 						} else if (oldH == newH)
-							lock = sl.getWidth().lock(true, cause);
+							lock = sl.getWidth().lockWrite(false, cause);
 						else
 							lock = Transaction.and(//
-								sl.getWidth().lock(true, cause), //
-								sl.getHeight().lock(true, cause));
+								sl.getWidth().lockWrite(false, cause), //
+								sl.getHeight().lockWrite(false, cause));
 						try {
 							if (oldW != newW)
 								sl.getWidth().set(newW);
@@ -1273,18 +1273,13 @@ public class QuickCoreSwing implements QuickInterpretation {
 		}
 
 		@Override
-		public Transaction lock(boolean write, Object cause) {
-			return Transaction.NONE;
+		public Getter<Boolean> lock(boolean tryOnly) {
+			return Getter.of(this, Transaction.NONE);
 		}
 
 		@Override
-		public Transaction tryLock(boolean write, Object cause) {
-			return Transaction.NONE;
-		}
-
-		@Override
-		public boolean isLockSupported() {
-			return false;
+		public Setter<Boolean> lockWrite(boolean tryOnly, Object cause) {
+			return new Setter.Unsettable<>(this, Transaction.NONE, StdMsg.UNSUPPORTED_OPERATION);
 		}
 
 		@Override
@@ -1454,13 +1449,40 @@ public class QuickCoreSwing implements QuickInterpretation {
 		}
 
 		@Override
-		public Transaction lock(boolean write, Object cause) {
-			return Transaction.NONE;
+		public Getter<Boolean> lock(boolean tryOnly) {
+			return Getter.of(this, Transaction.NONE);
 		}
 
 		@Override
-		public Transaction tryLock(boolean write, Object cause) {
-			return Transaction.NONE;
+		public Setter<Boolean> lockWrite(boolean tryOnly, Object cause) {
+			return new Setter<Boolean>() {
+				@Override
+				public Boolean get() {
+					return FocusSupport.this.get();
+				}
+
+				@Override
+				public String isEnabled() {
+					if (theComponent.isFocusable())
+						return null;
+					else
+						return "This component cannot be focused";
+				}
+
+				@Override
+				public String isAcceptable(Boolean value) {
+					return FocusSupport.this.isAcceptable(value);
+				}
+
+				@Override
+				public Boolean set(Boolean value) {
+					return FocusSupport.this.set(value);
+				}
+
+				@Override
+				public void close() {
+				}
+			};
 		}
 
 		@Override
@@ -1469,35 +1491,38 @@ public class QuickCoreSwing implements QuickInterpretation {
 		}
 
 		@Override
-		public boolean isLockSupported() {
-			return false;
-		}
-
-		@Override
 		public Boolean set(Boolean value) throws IllegalArgumentException, UnsupportedOperationException {
 			if (value.booleanValue()) {
 				if (theComponent.isFocusable())
 					throw new IllegalArgumentException("This component cannot be focused");
-				else if (!theComponent.isFocusOwner())
-					theComponent.requestFocus();
-			} else if (theComponent.isFocusOwner()) {
-				Window w = SwingUtilities.getWindowAncestor(theComponent);
-				if (w != null)
-					w.requestFocus();
-			}
-			throw new UnsupportedOperationException(StdMsg.UNSUPPORTED_OPERATION);
+				else {
+					boolean focused = theComponent.isFocusOwner();
+					if (!focused)
+						theComponent.requestFocus();
+					Window w = SwingUtilities.getWindowAncestor(theComponent);
+					if (w != null)
+						w.requestFocus();
+					return focused;
+				}
+			} else
+				throw new UnsupportedOperationException("Focus cannot be relinquished in this way");
 		}
 
 		@Override
 		public String isAcceptable(Boolean value) {
-			if (value.booleanValue() && !theComponent.isFocusable())
+			if (value == null || !value.booleanValue())
+				return "Focus cannot be relinquished in this way";
+			else if (!theComponent.isFocusable())
 				return "This component cannot be focused";
 			return null;
 		}
 
 		@Override
 		public ObservableValue<String> isEnabled() {
-			return SettableValue.ALWAYS_DISABLED;
+			if (theComponent.isFocusable())
+				return SettableValue.ALWAYS_ENABLED;
+			else
+				return ObservableValue.of("This component cannot be focused");
 		}
 
 		private void setListening(boolean listening) {

@@ -266,7 +266,7 @@ public class QuickFileChooser extends ExElement.Abstract implements QuickDialog 
 	 * @return Whether this file chooser's on-select action can handle the given file
 	 */
 	public synchronized String isFileAllowed(File file) {
-		try (Transaction t = theChosenFiles.lock(true, null)) {
+		try (Transaction t = theChosenFiles.lockWrite(false, null)) {
 			theChosenFiles.clear();
 			theChosenFiles.add(file);
 		}
@@ -280,7 +280,7 @@ public class QuickFileChooser extends ExElement.Abstract implements QuickDialog 
 	 * @return Null if the selection was successful, or a message why the given files were not acceptable
 	 */
 	public String filesChosen(List<File> chosenFiles) {
-		try (Transaction t = theChosenFiles.lock(true, null)) {
+		try (Transaction t = theChosenFiles.lockWrite(false, null)) {
 			theChosenFiles.clear();
 			theChosenFiles.addAll(chosenFiles);
 		}

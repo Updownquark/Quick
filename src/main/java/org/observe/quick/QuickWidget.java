@@ -536,7 +536,7 @@ public interface QuickWidget extends QuickTextElement, QuickWithBackground {
 			if (theBorder != null)
 				theBorder.update(myInterpreted.getBorder(), this);
 
-			try (Transaction t = theEventListeners.lock(true, null)) {
+			try (Transaction t = theEventListeners.lockWrite(false, null)) {
 				CollectionUtils
 				.synchronize(theEventListeners, myInterpreted.getEventListeners(), (l, i) -> l.getIdentity() == i.getIdentity())//
 				.simpleX(l -> {
@@ -548,7 +548,7 @@ public interface QuickWidget extends QuickTextElement, QuickWithBackground {
 				.adjust();
 			}
 
-			try (Transaction t = theDialogs.lock(true, null)) {
+			try (Transaction t = theDialogs.lockWrite(false, null)) {
 				CollectionUtils.synchronize(theDialogs, myInterpreted.getDialogs(), (l, i) -> l.getIdentity() == i.getIdentity())//
 				.simpleX(l -> {
 					QuickDialog listener = l.create();

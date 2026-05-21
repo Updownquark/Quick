@@ -2023,7 +2023,7 @@ class QuickSwingTablePopulation {
 				ObservableValue<String> enabled = action.getAction().isEnabled();
 				table.withMultiAction(null, FunctionUtils.<List<? extends R2>> printableConsumer(values -> {
 					if (!ctx.getActionValues().equals(values)) {
-						try (Transaction t = ctx.getActionValues().lock(true, null)) {
+						try (Transaction t = ctx.getActionValues().lockWrite(false, null)) {
 							CollectionUtils.synchronize(ctx.getActionValues(), values, (av, v) -> Objects.equals(av, reverse.apply(v)))//
 							.simple(reverse)//
 							.rightOrder()//
@@ -2058,7 +2058,7 @@ class QuickSwingTablePopulation {
 						long now = System.currentTimeMillis();
 						if (!equal || (!cycle && now - lastUpdate[0] > 3)) {
 							lastUpdate[0] = now;
-							try (Transaction t = ctx.getActionValues().lock(true, null)) {
+							try (Transaction t = ctx.getActionValues().lockWrite(false, null)) {
 								CollectionUtils.synchronize(ctx.getActionValues(), values, (av, v) -> Objects.equals(av, reverse.apply(v)))//
 								.simple(reverse)//
 								.commonUses(true, true)//

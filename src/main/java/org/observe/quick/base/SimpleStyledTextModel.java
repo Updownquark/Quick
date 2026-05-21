@@ -180,7 +180,7 @@ public class SimpleStyledTextModel implements CharSequence, Appendable {
 			return Transaction.NONE;
 		theRoot.addToBatch(this);
 		if (theChildBatch == null) {
-			theChildBatch = theChildren.lock(true, null);
+			theChildBatch = theChildren.lockWrite(false, null);
 			theRoot.addToBatch(this);
 		}
 		return theRoot.batch();
@@ -534,7 +534,7 @@ public class SimpleStyledTextModel implements CharSequence, Appendable {
 		@Override
 		public Transaction batch() {
 			int oldBC=theBatchCount;
-			Transaction childT=oldBC==0 ? getChildren().lock(true, null) : Transaction.NONE;
+			Transaction childT = oldBC == 0 ? getChildren().lockWrite(false, null) : Transaction.NONE;
 			theBatchCount++;
 			return ()->{
 				theBatchCount=oldBC;
