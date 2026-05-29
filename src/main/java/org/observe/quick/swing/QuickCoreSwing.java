@@ -199,7 +199,7 @@ public class QuickCoreSwing implements QuickInterpretation {
 								if (debugBG)
 									System.out.println("BG(renderer) of " + id + " is " + bg + " (" + color + ")");
 								pm.setBackground(bg);
-								pm.setOpaque(bg == null ? null : true);
+								pm.setOpaque(bg == null ? null : bg.getAlpha() == 255);
 							}
 						} else {
 							w.getRepaint().takeUntil(comp.getUntil()).act(__ -> {
@@ -211,7 +211,7 @@ public class QuickCoreSwing implements QuickInterpretation {
 							if (debugBG)
 								System.out.println("BG of " + id + " is " + bg + " (" + color + ")");
 							scd.propertyMgr.setBackground(bg);
-							scd.propertyMgr.setOpaque(bg == null ? null : true);
+							scd.propertyMgr.setOpaque(bg == null ? null : bg.getAlpha() == 255);
 							try {
 								w.setContext(new QuickWidget.BackgroundContext.Default(//
 									new MouseValueSupport(c, "hovered", null), //
@@ -240,7 +240,7 @@ public class QuickCoreSwing implements QuickInterpretation {
 						pm.setForeground(pmDecorator.getForeground());
 						Color bg = color.get();
 						pm.setBackground(bg);
-						pm.setOpaque(bg == null ? null : true);
+						pm.setOpaque(bg == null ? null : bg.getAlpha() == 255);
 					});
 					if (w.getTooltip() != null)
 						comp.withTooltip(w.getTooltip());
@@ -278,7 +278,7 @@ public class QuickCoreSwing implements QuickInterpretation {
 							if (debugBG)
 								System.out.println("BG of " + id + " is " + bg);
 							pm.setBackground(bg);
-							pm.setOpaque(bg == null ? null : true);
+							pm.setOpaque(bg == null ? null : bg.getAlpha() == 255);
 						}
 						if (!renderer && component[0] != null) {
 							evt.getRootCausable().onFinish(repaint);

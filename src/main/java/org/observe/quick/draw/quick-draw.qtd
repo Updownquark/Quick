@@ -246,6 +246,30 @@
 			<attribute name="ticks" type="expression" />
 		</element-def>
 		<element-def name="default-ticks" inherits="chart-tick-scheme" />
+		<element-def name="gradient-plot" extends="rectangle">
+			<element-model>
+				<value name-attribute="min-x-as" type="int" priority="0" />
+				<value name-attribute="max-x-as" type="int" priority="0" />
+				<value name-attribute="min-y-as" type="int" priority="0" />
+				<value name-attribute="max-y-as" type="int" priority="0" />
+				<value name-attribute="value-as" type="float" priority="0" />
+			</element-model>
+			<attribute name="xs" type="expression" />
+			<attribute name="ys" type="expression" />
+			<attribute name="aggregation" type="expression" />
+			<attribute name="min-x-as" type="identifier" default="minX" />
+			<attribute name="max-x-as" type="identifier" default="maxX" />
+			<attribute name="min-y-as" type="identifier" default="minY" />
+			<attribute name="max-y-as" type="identifier" default="maxY" />
+			<attribute name="value" type="expression" />
+			<attribute name="value-as" type="identifier" />
+			<attribute name="color" type="expression" />
+		</element-def>
+		
+		<?DOC Allows custom drawing?>
+		<element-def name="custom-draw" inherits="simple-shape">
+			<value type="expression" specify="required" />
+		</element-def>
 	</elements>
 
 	<auto-inheritance>

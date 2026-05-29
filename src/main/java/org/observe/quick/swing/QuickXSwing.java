@@ -346,6 +346,7 @@ public class QuickXSwing implements QuickInterpretation {
 				: new BgRenderer(quick.getBgRenderers(), Observable.or(panel.getUntil(), quick.onDestroy()));
 			createSlider(panel, quick, slider -> {
 				component.accept(slider);
+				slider.vertical(quick.isVertical());
 				HandleRenderer<T> handleRenderer;
 				try {
 					handleRenderer = quick.getHandleRenderer() == null ? null : new HandleRenderer<>(quick.isVertical(), quick.getValues(),

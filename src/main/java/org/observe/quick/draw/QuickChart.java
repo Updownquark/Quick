@@ -8,8 +8,6 @@ import org.observe.SettableValue;
 import org.observe.collect.ObservableCollection;
 import org.observe.expresso.ExpressoInterpretationException;
 import org.observe.expresso.ModelInstantiationException;
-import org.observe.expresso.ModelType.ModelInstanceType;
-import org.observe.expresso.ObservableModelSet.InterpretedValueSynth;
 import org.observe.expresso.ObservableModelSet.ModelSetInstance;
 import org.observe.expresso.qonfig.ElementTypeTraceability;
 import org.observe.expresso.qonfig.ExElement;
@@ -122,16 +120,13 @@ public class QuickChart extends QuickRectangle {
 	public static class ChartAxis<T extends Number> extends QuickShape.Abstract implements QuickLinearShape {
 		public static final String CHART_AXIS = "chart-axis";
 
-		public static final ExElementType.ExElementValue<?, ?, ?, ?, SettableValue<Boolean>> LEADING = ExElementType
+		public static final ExElementType.ValueExpression<Boolean, ?> LEADING = ExElementType
 			.valueExpression("leading", boolean.class, null);
-		public static final ExElementType.ExElementValue<?, //
-			? extends InterpretedValueSynth<SettableValue<?>, ? extends SettableValue<? extends Number>>, ?, ?, //
-				? extends SettableValue<?>> MIN = ExElementType.valueExpression("min", Number.class, null);
-		public static final ExElementType.ExElementValue<?, ?, ?, ?, ? extends SettableValue<? extends Number>> MAX = ExElementType
-			.valueExpression("max",
-				interpreted -> (ModelInstanceType<SettableValue<?>, SettableValue<Number>>) ((Interpreted<?>) interpreted).getTypeData()
-				.getOrInterpretValue(MIN, interpreted).getType(),
-				null);
+		public static final ExElementType.ValueExpression<? extends Number, ?> MIN = ExElementType.valueExpression("min", Number.class,
+			null);
+		public static final ExElementType.ValueExpression<? extends Number, ?> MAX = ExElementType
+			.valueExpression("max", interpreted -> (TypeToken<Number>) ((Interpreted<?>) interpreted).getTypeData()
+				.getOrInterpretValue(MIN, interpreted).getType().getType(0), null);
 		public static final ExElementType.ExElementChild<ChartTickScheme, ?, ?> SCHEME = ExElementType.child(//
 			"scheme", ChartTickScheme.Def.class, ChartTickScheme.Def::interpret, ChartTickScheme.Interpreted::updateElement, //
 			ChartTickScheme.Interpreted::create);

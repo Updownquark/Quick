@@ -85,6 +85,11 @@ public class QuickDrawInterpretation implements QonfigInterpretation {
 			ExElement.creator(QuickChart.TickLine.Def::new));
 		interpreter.createWith(QuickChart.GridLines.GRID_LINES, QuickChart.GridLines.Def.class,
 			ExElement.creator(QuickChart.GridLines.Def::new));
+		interpreter.createWith(QuickGradientPlot.GRADIENT_PLOT, QuickGradientPlot.Def.class,
+			ExElement.creator((parent, type) -> new QuickGradientPlot.Def(parent, type)));
+
+		interpreter.createWith(QuickCustomDraw.CUSTOM_DRAW, QuickCustomDraw.Def.class,
+			ExElement.creator((parent, type) -> new QuickCustomDraw.Def(parent, type)));
 
 		return interpreter;
 	}

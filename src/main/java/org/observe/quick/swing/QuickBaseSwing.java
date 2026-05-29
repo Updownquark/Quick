@@ -2326,7 +2326,8 @@ public class QuickBaseSwing implements QuickInterpretation {
 					mode = JFileChooser.DIRECTORIES_ONLY;
 				swingChooser.setFileSelectionMode(mode);
 				swingChooser.setMultiSelectionEnabled(dialog.isMultiSelectable());
-				window.isVisible().value().takeUntil(until).safe(ThreadConstraint.EDT).filter(FunctionUtils.identity()).act(__ -> {
+				window.isVisible().value().takeUntil(until)// .safe(ThreadConstraint.EDT)
+					.filter(FunctionUtils.identity()).act(__ -> {
 					display(swingChooser, parent, dialog, window);
 				});
 			}
