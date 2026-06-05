@@ -246,6 +246,7 @@
 			<attribute name="ticks" type="expression" />
 		</element-def>
 		<element-def name="default-ticks" inherits="chart-tick-scheme" />
+		<?DOC Assists in rendering grid data (regular or irregular) continuously?>
 		<element-def name="gradient-plot" extends="rectangle">
 			<element-model>
 				<value name-attribute="min-x-as" type="int" priority="0" />
@@ -254,15 +255,27 @@
 				<value name-attribute="max-y-as" type="int" priority="0" />
 				<value name-attribute="value-as" type="float" priority="0" />
 			</element-model>
+			<?DOC The list of x-axis values for which there are data, in current coordinates?>
 			<attribute name="xs" type="expression" />
+			<?DOC The list of y-axis values for which there are data, in current coordinates?>
 			<attribute name="ys" type="expression" />
-			<attribute name="aggregation" type="expression" />
+			<?DOC Variable in which to store the minimum X index to get a plot value for.<br>
+				This may include -1 if the pixel is prior to the first X value, or the size of the xs collection if the pixel is after the last X value.?>
 			<attribute name="min-x-as" type="identifier" default="minX" />
+			<?DOC Variable in which to store the maximum X index to get a plot value for.<br>
+				This may include -1 if the pixel is prior to the first X value, or the size of the xs collection if the pixel is after the last X value.?>
 			<attribute name="max-x-as" type="identifier" default="maxX" />
+			<?DOC Variable in which to store the minimum Y index to get a plot value for.<br>
+				This may include -1 if the pixel is prior to the first Y value, or the size of the xs collection if the pixel is after the last Y value.?>
 			<attribute name="min-y-as" type="identifier" default="minY" />
+			<?DOC Variable in which to store the maximum Y index to get a plot value for.<br>
+				This may include -1 if the pixel is prior to the first Y value, or the size of the xs collection if the pixel is after the last Y value.?>
 			<attribute name="max-y-as" type="identifier" default="maxY" />
+			<?DOC Computes the plot value for rectangle of sub-grid cells in the min/max x/y index range?>
 			<attribute name="value" type="expression" />
+			<?DOC Variable in which to store the value to render?>
 			<attribute name="value-as" type="identifier" />
+			<?DOC The color to render for the value-as value?>
 			<attribute name="color" type="expression" />
 		</element-def>
 		

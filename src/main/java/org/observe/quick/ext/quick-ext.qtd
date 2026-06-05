@@ -203,6 +203,7 @@
 		<element-def name="super-table" extends="table">
 			<attribute name="searchable" type="boolean" default="true" />
 			<attribute name="item-name" type="string" specify="optional" />
+			<attribute name="count-title" type="expression" specify="optional" />
 			<?DOC A collection of the same type as this table's rows that, if specified,
 				will contain the list of row values actually displayed to the user in the table?>
 			<attribute name="displayed" type="expression" specify="optional" />

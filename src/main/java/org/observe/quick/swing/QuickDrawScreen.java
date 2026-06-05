@@ -23,9 +23,37 @@ public interface QuickDrawScreen extends Transaction {
 
 	int containsY(float y);
 
+	/**
+	 * Transforms an x-coordinate in the current coordinate system to the corresponding x-coordinate of a pixel on the graphics display
+	 *
+	 * @param x The x-coordinate to transform
+	 * @return The transformed x-coordinate
+	 */
 	float transformX(float x);
 
+	/**
+	 * Transforms an x-coordinate of a pixel on the graphics display to the corresponding x-coordinate in the current coordinate system
+	 *
+	 * @param x The x-coordinate to transform
+	 * @return The transformed x-coordinate
+	 */
+	float inverseTransformX(float x);
+
+	/**
+	 * Transforms a y-coordinate in the current coordinate system to the corresponding y-coordinate of a pixel on the graphics display
+	 *
+	 * @param y The y-coordinate to transform
+	 * @return The transformed y-coordinate
+	 */
 	float transformY(float y);
+
+	/**
+	 * Transforms a y-coordinate of a pixel on the graphics display to the corresponding y-coordinate in the current coordinate system
+	 *
+	 * @param y The y-coordinate to transform
+	 * @return The transformed y-coordinate
+	 */
+	float inverseTransformY(float y);
 
 	Point tx(float x, float y);
 
@@ -159,7 +187,17 @@ public interface QuickDrawScreen extends Transaction {
 		}
 
 		@Override
+		public float inverseTransformX(float x) {
+			return x;
+		}
+
+		@Override
 		public float transformY(float y) {
+			return y;
+		}
+
+		@Override
+		public float inverseTransformY(float y) {
 			return y;
 		}
 
@@ -251,8 +289,18 @@ public interface QuickDrawScreen extends Transaction {
 		}
 
 		@Override
+		public float inverseTransformX(float x) {
+			return x - theOffsetX;
+		}
+
+		@Override
 		public float transformY(float y) {
 			return y + theOffsetY;
+		}
+
+		@Override
+		public float inverseTransformY(float y) {
+			return y - theOffsetY;
 		}
 
 		@Override
@@ -377,8 +425,18 @@ public interface QuickDrawScreen extends Transaction {
 		}
 
 		@Override
+		public float inverseTransformX(float x) {
+			return (x - theOffsetX) / theScaleX;
+		}
+
+		@Override
 		public float transformY(float y) {
 			return y * theScaleY + theOffsetY;
+		}
+
+		@Override
+		public float inverseTransformY(float y) {
+			return (y - theOffsetY) / theScaleY;
 		}
 
 		@Override

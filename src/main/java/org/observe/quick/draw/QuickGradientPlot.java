@@ -24,78 +24,6 @@ import org.qommons.config.QonfigInterpretationException;
 import org.qommons.fn.FunctionUtils;
 
 public class QuickGradientPlot extends QuickRectangle{
-	public interface Aggregation {
-		public static final Aggregation MIN = Accumulator.Min::new;
-		public static final Aggregation MAX = Accumulator.Max::new;
-		public static final Aggregation MEAN = Accumulator.Mean::new;
-
-		Accumulator accumulate();
-	}
-
-	public interface Accumulator {
-		Accumulator acceptValue(float value);
-
-		float get();
-
-		static class Max implements Accumulator {
-			private float theMax = Float.NaN;
-
-			@Override
-			public Accumulator acceptValue(float value) {
-				if (Float.isNaN(theMax) || value > theMax)
-					theMax = value;
-				return this;
-			}
-
-			@Override
-			public float get() {
-				float v = theMax;
-				theMax = Float.NaN;
-				return v;
-			}
-		}
-
-		static class Min implements Accumulator {
-			private float theMin = Float.NaN;
-
-			@Override
-			public Accumulator acceptValue(float value) {
-				if (Float.isNaN(theMin) || value < theMin)
-					theMin = value;
-				return this;
-			}
-
-			@Override
-			public float get() {
-				float v = theMin;
-				theMin = Float.NaN;
-				return v;
-			}
-		}
-
-		static class Mean implements Accumulator {
-			private float theSum;
-			private int theCount;
-
-			@Override
-			public Accumulator acceptValue(float value) {
-				if (!Float.isNaN(value)) {
-					theSum += value;
-					theCount++;
-				}
-				return this;
-			}
-
-			@Override
-			public float get() {
-				float v = theCount == 0 ? Float.NaN : theSum / theCount;
-				theSum = 0;
-				theCount = 0;
-				return v;
-			}
-		}
-	}
-
 	public interface Renderer extends Transaction {
 		float getValue(int minX, int maxX, int minY, int maxY);
 
@@ -109,8 +37,6 @@ public class QuickGradientPlot extends QuickRectangle{
 		TypeTokens.get().keyFor(List.class).<List<Number>> parameterized(Number.class), null);
 	public static final ExElementType.ValueExpression<List<Number>, ?> YS = ExElementType.valueExpression("ys",
 		TypeTokens.get().keyFor(List.class).<List<Number>> parameterized(Number.class), null);
-	public static final ExElementType.ValueExpression<Aggregation, ?> AGGREGATION = ExElementType.valueExpression("aggregation",
-		Aggregation.class, null);
 	public static final ExElementType.ExElementModelValue<SettableValue<?>, SettableValue<Integer>> MIN_X_AS = ExElementType
 		.modelAttributeValue("min-x-as", int.class);
 	public static final ExElementType.ExElementModelValue<SettableValue<?>, SettableValue<Integer>> MAX_X_AS = ExElementType
@@ -127,7 +53,6 @@ public class QuickGradientPlot extends QuickRectangle{
 		.build(QuickDrawInterpretation.NAME, QuickDrawInterpretation.VERSION, WITH_STROKE)//
 		.withValue(XS)//
 		.withValue(YS)//
-		.withValue(AGGREGATION)//
 		.withModelValue(MIN_X_AS)//
 		.withModelValue(MAX_X_AS)//
 		.withModelValue(MIN_Y_AS)//
@@ -146,7 +71,7 @@ public class QuickGradientPlot extends QuickRectangle{
 		public static final void configureTraceability(
 			ElementTypeTraceability.SingleTypeTraceabilityBuilder<QuickGradientPlot, Interpreted, Def> traceability) {
 			GRADIENT_PLOT_TYPE.configureElementTraceability(traceability)//
-				.configure(Def::getTypeData, Interpreted::getTypeData, QuickGradientPlot::getTypeData);
+			.configure(Def::getTypeData, Interpreted::getTypeData, QuickGradientPlot::getTypeData);
 		}
 
 		private final ExElementType.DefTypeData theTypeData;
@@ -225,10 +150,6 @@ public class QuickGradientPlot extends QuickRectangle{
 		return theTypeData.getValue(YS).get();
 	}
 
-	public Aggregation getAggregation() {
-		return theTypeData.getValue(AGGREGATION).get();
-	}
-
 	public Renderer getRenderer() {
 		Causable.CausableInUse cause = Causable.cause();
 		SettableValue.Setter<Integer> minXAs = theTypeData.satisfyModelValue(MIN_X_AS, () -> SettableValue.create(0)).lockWrite(false,
@@ -274,8 +195,7 @@ public class QuickGradientPlot extends QuickRectangle{
 	}
 
 	public Observable<? extends Causable> getChanges() {
-		return Observable.or(theTypeData.getValue(XS).noInitChanges(), theTypeData.getValue(YS).noInitChanges(),
-			theTypeData.getValue(AGGREGATION).noInitChanges());
+		return Observable.or(theTypeData.getValue(XS).noInitChanges(), theTypeData.getValue(YS).noInitChanges());
 	}
 
 	@Override

@@ -545,7 +545,7 @@ public class QuickXSwing implements QuickInterpretation {
 					ctx.getHandleIndex().set(values.indexOf(v));
 					Double minV = min.get();
 					Double maxV = max.get();
-					if (minV != null && maxV != null)
+					if (minV != null && maxV != null && minV < maxV)
 						return Range.forMinMax(minV, maxV);
 					else
 						return null;
@@ -802,6 +802,7 @@ public class QuickXSwing implements QuickInterpretation {
 			}
 			if (superQuick.getItemName() != null)
 				table.withItemName(superQuick.getItemName());
+			table.withCountTitle(superQuick.getCountTitle());
 			if (superQuick.getAdaptiveHeight() != null) {
 				table.withAdaptiveHeight(//
 					superQuick.getAdaptiveHeight().getMinRows(-1), //

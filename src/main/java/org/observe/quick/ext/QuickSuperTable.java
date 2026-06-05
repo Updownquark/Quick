@@ -46,6 +46,7 @@ public class QuickSuperTable<R, C> extends QuickTable<R, C> {
 	public static class Def<T extends QuickSuperTable<?, ?>> extends QuickTable.Def<T> {
 		private boolean isSearchable;
 		private String theItemName;
+		private CompiledExpression theCountTitle;
 		private CompiledExpression theDisplayed;
 		private WithRowDragging.Def theRowDragging;
 		private AdaptiveHeight.Def theAdaptiveHeight;
@@ -68,6 +69,11 @@ public class QuickSuperTable<R, C> extends QuickTable<R, C> {
 		@QonfigAttributeGetter("item-name")
 		public String getItemName() {
 			return theItemName;
+		}
+
+		@QonfigAttributeGetter("count-title")
+		public CompiledExpression getCountTitle() {
+			return theCountTitle;
 		}
 
 		/**
@@ -97,6 +103,7 @@ public class QuickSuperTable<R, C> extends QuickTable<R, C> {
 
 			isSearchable = session.getAttribute("searchable", boolean.class);
 			theItemName = session.getAttribute("item-name", String.class);
+			theCountTitle = getAttributeExpression("count-title", session);
 			theDisplayed = getAttributeExpression("displayed", session);
 			theRowDragging = syncChild(WithRowDragging.Def.class, theRowDragging, session, "rows-draggable");
 			if (theRowDragging != null && getSelectionType() != TableSelectionType.row)
@@ -118,6 +125,7 @@ public class QuickSuperTable<R, C> extends QuickTable<R, C> {
 	 * @param <T> The sub-type of table to create
 	 */
 	public static class Interpreted<R, C, T extends QuickSuperTable<R, C>> extends QuickTable.Interpreted<R, C, T> {
+		private InterpretedValueSynth<SettableValue<?>, SettableValue<String>> theCountTitle;
 		private InterpretedValueSynth<ObservableCollection<?>, ObservableCollection<R>> theDisplayed;
 		private WithRowDragging.Interpreted theRowDragging;
 		private AdaptiveHeight.Interpreted theAdaptiveHeight;
@@ -133,6 +141,10 @@ public class QuickSuperTable<R, C> extends QuickTable<R, C> {
 		@Override
 		public Def<T> getDefinition() {
 			return (Def<T>) super.getDefinition();
+		}
+
+		public InterpretedValueSynth<SettableValue<?>, SettableValue<String>> getCountTitle() {
+			return theCountTitle;
 		}
 
 		/**
@@ -156,6 +168,7 @@ public class QuickSuperTable<R, C> extends QuickTable<R, C> {
 		@Override
 		protected void doUpdate() throws ExpressoInterpretationException {
 			super.doUpdate();
+			theCountTitle = interpret(getDefinition().getCountTitle(), ModelTypes.Value.STRING);
 			theDisplayed = interpret(getDefinition().getDisplayed(), ModelTypes.Collection.forType(getValueType()));
 			theRowDragging = syncChild(getDefinition().getRowDragging(), theRowDragging, def -> def.interpret(this),
 				WithRowDragging.Interpreted::updateRowDragging);
@@ -445,8 +458,10 @@ public class QuickSuperTable<R, C> extends QuickTable<R, C> {
 	private boolean isSearchable;
 	private String theItemName;
 
+	private ModelValueInstantiator<SettableValue<String>> theCountTitleInstantiator;
 	private ModelValueInstantiator<ObservableCollection<R>> theDisplayedInstantiator;
 
+	private SettableValue<SettableValue<String>> theCountTitle;
 	private SettableValue<ObservableCollection<R>> theDisplayed;
 
 	private WithRowDragging theRowDragging;
@@ -456,6 +471,7 @@ public class QuickSuperTable<R, C> extends QuickTable<R, C> {
 	/** @param id The element ID for this widget */
 	protected QuickSuperTable(Object id) {
 		super(id);
+		theCountTitle = SettableValue.create();
 		theDisplayed = SettableValue.create();
 	}
 
@@ -467,6 +483,10 @@ public class QuickSuperTable<R, C> extends QuickTable<R, C> {
 	/** @return The item name for rows in the table. May affect some kinds of auto-generated UI text. */
 	public String getItemName() {
 		return theItemName;
+	}
+
+	public ObservableValue<String> getCountTitle() {
+		return ObservableValue.flatten(theCountTitle);
 	}
 
 	/**
@@ -494,6 +514,7 @@ public class QuickSuperTable<R, C> extends QuickTable<R, C> {
 		Interpreted<R, C, ?> myInterpreted = (Interpreted<R, C, ?>) interpreted;
 		isSearchable = myInterpreted.getDefinition().isSearchable();
 		theItemName = myInterpreted.getDefinition().getItemName();
+		theCountTitleInstantiator = ExElement.instantiate(myInterpreted.getCountTitle());
 		theRowDragging = syncChild(myInterpreted.getRowDragging(), theRowDragging, WithRowDragging.Interpreted::create,
 			WithRowDragging::update);
 		theDisplayedInstantiator = myInterpreted.getDisplayed() == null ? null : myInterpreted.getDisplayed().instantiate();
@@ -518,6 +539,8 @@ public class QuickSuperTable<R, C> extends QuickTable<R, C> {
 	public void instantiated() throws ModelInstantiationException {
 		super.instantiated();
 
+		if (theCountTitleInstantiator != null)
+			theCountTitleInstantiator.instantiate();
 		if (theDisplayedInstantiator != null)
 			theDisplayedInstantiator.instantiate();
 		if (theRowDragging != null)
@@ -530,6 +553,7 @@ public class QuickSuperTable<R, C> extends QuickTable<R, C> {
 	protected ModelSetInstance doInstantiate(ModelSetInstance myModels) throws ModelInstantiationException {
 		myModels = super.doInstantiate(myModels);
 
+		theCountTitle.set(ExElement.get(theCountTitleInstantiator, myModels));
 		theDisplayed.set(theDisplayedInstantiator == null ? null : theDisplayedInstantiator.get(myModels), null);
 		if (theAdaptiveHeight != null)
 			theAdaptiveHeight.instantiate(myModels);
@@ -540,6 +564,7 @@ public class QuickSuperTable<R, C> extends QuickTable<R, C> {
 	public QuickSuperTable<R, C> copy(ExElement parent) {
 		QuickSuperTable<R, C> copy = (QuickSuperTable<R, C>) super.copy(parent);
 
+		copy.theCountTitle = SettableValue.create();
 		copy.theDisplayed = SettableValue.create();
 		if (theRowDragging != null)
 			copy.theRowDragging = theRowDragging.copy(copy);

@@ -22,6 +22,7 @@ import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -661,7 +662,6 @@ public class QuickDrawSwing implements QuickInterpretation {
 			addComponentListener(new ComponentAdapter() {
 				@Override
 				public void componentResized(ComponentEvent e) {
-					theBuffer = null;
 					publishSize();
 				}
 			});
@@ -818,7 +818,7 @@ public class QuickDrawSwing implements QuickInterpretation {
 		protected void paintComponent(Graphics g) {
 			super.paintComponent(g);
 			Graphics2D repaintBuffer;
-			if (theBuffer == null) {
+			if (theBuffer == null || getWidth() != theBuffer.getWidth() || getHeight() != theBuffer.getHeight()) {
 				isBufferUpToDate = false;
 				theBuffer = new BufferedImage(getWidth(), getHeight(), BufferedImage.TYPE_4BYTE_ABGR);
 				repaintBuffer = theBuffer.createGraphics();
@@ -827,8 +827,9 @@ public class QuickDrawSwing implements QuickInterpretation {
 				repaintBuffer = theBuffer.createGraphics();
 				repaintBuffer.setBackground(Colors.transparent);
 				repaintBuffer.clearRect(0, 0, theBuffer.getWidth(), theBuffer.getHeight());
-			} else
+			} else {
 				repaintBuffer = null;
+			}
 
 			if (repaintBuffer != null) {
 				theContainer.draw(new QuickDrawScreen.SimpleScreen(repaintBuffer, getWidth(), getHeight(), Transaction.NONE));
@@ -1710,13 +1711,16 @@ public class QuickDrawSwing implements QuickInterpretation {
 			boolean draw;
 			if (size == 0)
 				draw = false;
-			else if (size < 0) {
-				theShape.reporting().warn(StringUtils.capitalize(sizeName) + " evaluates negatively: " + size);
+			int containsMin = contains.compare(pos);
+			if (containsMin != 0 && (containsMin > 0) == (size > 0))
 				draw = false;
-			} else if (contains.compare(pos) > 0 || contains.compare(pos + size) < 0)
-				draw = false;
-			else
-				draw = true;
+			else {
+				int containsMax = contains.compare(pos + size);
+				if (containsMax != 0 && (containsMax < 0) == size > 0)
+					draw = false;
+				else
+					draw = true;
+			}
 
 			if (draw || debugging) {
 				setPosition.accept(pos);
@@ -3178,6 +3182,8 @@ public class QuickDrawSwing implements QuickInterpretation {
 			if (flipY) {
 				translateY -= targetHeight * 2;
 				scaleY = -scaleY;
+			} else if (scaleY < 0) {
+				// translateY = targetHeight - translateY;
 			}
 			translateX *= scaleX;
 			translateY *= scaleY;
@@ -3270,7 +3276,7 @@ public class QuickDrawSwing implements QuickInterpretation {
 				theHLabelSection = new Rectangle2D.Float(//
 					vAxisLeft ? vAxisSize : 0, //
 						hAxisTop ? 0 : screen.getHeight() - hAxisSize, //
-					screen.getWidth() - vAxisSize, //
+							screen.getWidth() - vAxisSize, //
 							hAxisSize);
 			if (theVAxis == null)
 				theVLabelSection = null;
@@ -3314,9 +3320,8 @@ public class QuickDrawSwing implements QuickInterpretation {
 						minY = 0;
 						maxY = theChartArea.height;
 					}
-					try (
-						QuickDrawScreen txScreen = QuickDrawToCoords.transform(contentScreen, theChartArea.width, theChartArea.height, minX,
-							minY, maxX - minX, maxY - minY, false)) {
+					try (QuickDrawScreen txScreen = QuickDrawToCoords.transform(contentScreen, theChartArea.width, theChartArea.height,
+						minX, minY, maxX - minX, maxY - minY, false)) {
 						if (txScreen != null)
 							super.drawInnerContents(txScreen);
 					}
@@ -3892,268 +3897,294 @@ public class QuickDrawSwing implements QuickInterpretation {
 		@Override
 		protected void doDraw(QuickDrawScreen screen, Rectangle bounds) {
 			super.doDraw(screen, bounds);
-
-			if (theImage == null || theImage.getWidth() != bounds.width || theImage.getHeight() != bounds.height)
-				theImage = new BufferedImage(bounds.width, bounds.height, BufferedImage.TYPE_4BYTE_ABGR);
-
-			List<Number> xList = getShape().getXs(), yList = getShape().getYs();
-			if (xList == null || xList.isEmpty() || yList == null || yList.isEmpty())
+			if (!isVisible() || bounds.width <= 0 || bounds.height <= 0)
 				return;
 
-			float[] xs = new float[xList.size()];
-			float[] ys = new float[yList.size()];
-			int i = 0;
-			for (Number x : xList) {
-				xs[i] = x.floatValue();
-				if (i > 0 && xs[i] < xs[i - 1]) {
-					getShape().reporting().error("xs are not sorted: [" + (i - 1) + "]=" + xs[i - 1] + ", [" + i + "]=" + xs[i]);
+			try (GradientPlotRenderer renderer = new GradientPlotRenderer(getShape(), screen, bounds)) {
+				if (renderer.isEmpty())
 					return;
-				}
-				i++;
-			}
-			i = 0;
-			for (Number y : yList) {
-				ys[i] = y.floatValue();
-				if (i > 0 && ys[i] < ys[i - 1]) {
-					getShape().reporting().error("ys are not sorted: [" + (i - 1) + "]=" + ys[i - 1] + ", [" + i + "]=" + ys[i]);
-					return;
-				}
-				i++;
-			}
 
-			float minX = xs[0], maxX = xs[xs.length - 1], minY = ys[0], maxY = ys[ys.length - 1];
-			float pixDX = (maxX - minX) / bounds.width;
-			float pixDY = (maxY - minY) / bounds.height;
-			float pixY = maxY;
-			float prevYIndex = ys.length - 1, yIndex;
-			QuickGradientPlot.Accumulator accumulator = getShape().getAggregation().accumulate();
-			QuickGradientPlot.Renderer renderer = getShape().getRenderer();
-			for (int y = bounds.height - 1; y >= 0; y--, pixY -= pixDY, prevYIndex = yIndex) {
-				yIndex = getIndex(ys, pixY);
-				float pixX = minX;
-				float prevXIndex = 0, xIndex;
-				for (int x = 0; x < bounds.width; x++, pixX += pixDX, prevXIndex = xIndex) {
-					xIndex = getIndex(xs, pixX);
-					float pixelValue = getPixelValue(prevXIndex, xIndex, prevYIndex, yIndex, accumulator, renderer);
-					if (!Float.isNaN(pixelValue)) {
-						Color color = renderer.getColor(pixelValue);
-						if (color == null)
-							color = Colors.transparent;
-						theImage.setRGB(x, y, color.getRGB());
-					}
-				}
+				if (theImage == null || theImage.getWidth() != bounds.width || theImage.getHeight() != bounds.height)
+					theImage = new BufferedImage(bounds.width, bounds.height, BufferedImage.TYPE_4BYTE_ABGR);
+
+				renderer.draw(theImage);
 			}
 			screen.gfx().drawImage(theImage, bounds.x, bounds.y, null);
 		}
 
-		private float getIndex(float[] values, float value) {
-			int minI = 0, maxI = values.length - 1;
-			float minV = values[minI];
-			if (value < minV)
-				return minI;
-			float maxV = values[maxI];
-			if (value > maxV)
-				return maxI;
-			float fi = minI + ((value - minV) * (maxI - minI) / (maxV - minV));
-			int i = (int) fi;
-			while (minI + 1 < maxI) {
-				float vi = values[i];
-				if (value < vi) {
-					maxI = i;
-					maxV = vi;
-				} else if (value > vi) {
-					minI = i;
-					minV = vi;
-				} else
-					return i;
-				fi = minI + ((value - minV) * (maxI - minI) / (maxV - minV));
-				i = (int) fi;
-				if (i <= minI)
-					i = minI + 1;
-			}
-			if (minI == maxI)
-				return minI;
-			return fi;
+		interface FloatUnaryOperator {
+			float applyAsFloat(float arg);
 		}
 
-		protected float getPixelValue(float x0, float x1, float y0, float y1, QuickGradientPlot.Accumulator accumulator,
-			QuickGradientPlot.Renderer renderer) {
-			float dx = x1 - x0;
-			float absDX = Math.abs(dx);
-			if (absDX <= 0.5f)
-				return interpolate((int) x0, getSingleXPixel((int) x0, y0, y1, accumulator, renderer), //
-					(int) x1, getSingleXPixel((int) x1, y0, y1, accumulator, renderer), x0 + dx / 2);
-			else if (absDX <= 1f)
-				return getDoubleXPixel(Math.round(x0), Math.round(x1), y0, y1, accumulator, renderer);
-			else if (absDX <= 1.5f)
-				return getTripleXPixel(Math.round(x0), Math.round((x0 + x1) / 2), Math.round(x1), y0, y1, accumulator, renderer);
-			else
-				return getMultiXPixel(Math.round(x0), Math.round(x1), x1 > x0 ? 1 : -1, y0, y1, accumulator, renderer);
-		}
+		private static class GradientPlotRenderer implements Transaction {
+			private final QuickGradientPlot.Renderer theRenderer;
+			private final float[] theXIndexes;
+			private final float[] theYIndexes;
+			private final int theDXIndex;
+			private final int theDYIndex;
+			private int thePrevXIndex;
+			private int thePrevYIndex;
+			private final boolean[] hasPrevYValues;
+			private final float[] thePrevYValues;
+			private boolean hasNextYPrevX;
+			private float theNextYPrevX;
+			private boolean hasNextYNextX;
+			private float theNextYNextX;
 
-		private float interpolate(int x0, float y0, int x1, float y1, float x) {
-			return y0 + (x - x0) * (y1 - y0) / (x1 - x0);
-		}
-
-		private float getSingleXPixel(int x, float y0, float y1, QuickGradientPlot.Accumulator accumulator,
-			QuickGradientPlot.Renderer renderer) {
-			float dy = y1 - y0;
-			float absDY = Math.abs(dy);
-			if (absDY <= 0.5f) {
-				return interpolate((int) y0, renderer.getValue(x, x, (int) y0, (int) y0), (int) y1,
-					renderer.getValue(x, x, (int) y1, (int) y1), y0 + dy / 2);
-			} else if (absDY <= 1f) {
-				return accumulator//
-					.acceptValue(renderer.getValue(x, x, Math.round(y0)))//
-					.acceptValue(renderer.getValue(x, x, Math.round(y1)))//
-					.get();
-			} else if (absDY < 1.5f) {
-				return accumulator//
-					.acceptValue(renderer.getValue(x, x, Math.round(y0)))//
-					.acceptValue(renderer.getValue(x, x, Math.round((y0 + y1) / 2)))//
-					.acceptValue(renderer.getValue(x, x, Math.round(y1)))//
-					.get();
-			} else {
-				int endY = Math.round(y1);
-				int diffY = y1 > y0 ? 1 : -1;
-				for (int y = Math.round(y0); y != endY; y += diffY)
-					accumulator.acceptValue(renderer.getValue(x, y));
-				return accumulator.get();
-			}
-		}
-
-		private float getDoubleXPixel(int x0, int x1, float y0, float y1, QuickGradientPlot.Accumulator accumulator,
-			QuickGradientPlot.Renderer renderer) {
-			float dy = y1 - y0;
-			float absDY = Math.abs(dy);
-			if (absDY <= 0.5f) {
-				int y = Math.round(y0 + dy / 2);
-				return accumulator//
-					.acceptValue(renderer.getValue(x0, y))//
-					.acceptValue(renderer.getValue(x1, y))//
-					.get();
-			} else if (absDY <= 1f) {
-				int iy0 = Math.round(y0);
-				int iy1 = Math.round(y1);
-				return accumulator//
-					.acceptValue(renderer.getValue(x0, iy0))//
-					.acceptValue(renderer.getValue(x0, iy1))//
-					.acceptValue(renderer.getValue(x1, iy0))//
-					.acceptValue(renderer.getValue(x1, iy1))//
-					.get();
-			} else if (absDY < 1.5f) {
-				int iy0 = Math.round(y0);
-				int iyMid = Math.round((y0 + y1) / 2);
-				int iy1 = Math.round(y1);
-				return accumulator//
-					.acceptValue(renderer.getValue(x0, iy0))//
-					.acceptValue(renderer.getValue(x0, iyMid))//
-					.acceptValue(renderer.getValue(x0, iy1))//
-					.acceptValue(renderer.getValue(x1, iy0))//
-					.acceptValue(renderer.getValue(x1, iyMid))//
-					.acceptValue(renderer.getValue(x1, iy1))//
-					.get();
-			} else {
-				int endY = Math.round(y1);
-				int diffY = y1 > y0 ? 1 : -1;
-				for (int y = Math.round(y0); y != endY; y += diffY)
-					accumulator//
-					.acceptValue(renderer.getValue(x0, y))//
-					.acceptValue(renderer.getValue(x1, y));
-				return accumulator.get();
-			}
-		}
-
-		private float getTripleXPixel(int x0, int xMid, int x1, float y0, float y1, QuickGradientPlot.Accumulator accumulator,
-			QuickGradientPlot.Renderer renderer) {
-			float dy = y1 - y0;
-			float absDY = Math.abs(dy);
-			if (absDY <= 0.5f) {
-				int y = Math.round(y0 + dy / 2);
-				return accumulator//
-					.acceptValue(renderer.getValue(x0, y))//
-					.acceptValue(renderer.getValue(xMid, y))//
-					.acceptValue(renderer.getValue(x1, y))//
-					.get();
-			} else if (absDY <= 1f) {
-				int iy0 = Math.round(y0);
-				int iy1 = Math.round(y1);
-				return accumulator//
-					.acceptValue(renderer.getValue(x0, iy0))//
-					.acceptValue(renderer.getValue(x0, iy1))//
-					.acceptValue(renderer.getValue(xMid, iy0))//
-					.acceptValue(renderer.getValue(xMid, iy1))//
-					.acceptValue(renderer.getValue(x1, iy0))//
-					.acceptValue(renderer.getValue(x1, iy1))//
-					.get();
-			} else if (absDY < 1.5f) {
-				int iy0 = Math.round(y0);
-				int iyMid = Math.round((y0 + y1) / 2);
-				int iy1 = Math.round(y1);
-				return accumulator//
-					.acceptValue(renderer.getValue(x0, iy0))//
-					.acceptValue(renderer.getValue(x0, iyMid))//
-					.acceptValue(renderer.getValue(x0, iy1))//
-					.acceptValue(renderer.getValue(xMid, iy0))//
-					.acceptValue(renderer.getValue(xMid, iyMid))//
-					.acceptValue(renderer.getValue(xMid, iy1))//
-					.acceptValue(renderer.getValue(x1, iy0))//
-					.acceptValue(renderer.getValue(x1, iyMid))//
-					.acceptValue(renderer.getValue(x1, iy1))//
-					.get();
-			} else {
-				int endY = Math.round(y1);
-				int diffY = y1 > y0 ? 1 : -1;
-				for (int y = Math.round(y0); y != endY; y += diffY)
-					accumulator//
-					.acceptValue(renderer.getValue(x0, y))//
-					.acceptValue(renderer.getValue(xMid, y))//
-					.acceptValue(renderer.getValue(x1, y));
-				return accumulator.get();
-			}
-		}
-
-		private float getMultiXPixel(int startX, int endX, int diffX, float y0, float y1, QuickGradientPlot.Accumulator accumulator,
-			QuickGradientPlot.Renderer renderer) {
-			float dy = y1 - y0;
-			float absDY = Math.abs(dy);
-			if (absDY <= 0.5f) {
-				int y = Math.round(y0 + dy / 2);
-				for (int x = startX; x != endX; x += diffX)
-					accumulator.acceptValue(renderer.getValue(x, y));
-				return accumulator.get();
-			} else if (absDY <= 1f) {
-				int iy0 = Math.round(y0);
-				int iy1 = Math.round(y1);
-				for (int x = startX; x != endX; x += diffX)
-					accumulator.acceptValue(renderer.getValue(x, iy0))//
-					.acceptValue(renderer.getValue(x, iy1));
-				return accumulator.get();
-			} else if (absDY <= 1.5f) {
-				int iy0 = Math.round(y0);
-				int iyMid = Math.round((y0 + y1) / 2);
-				int iy1 = Math.round(y1);
-				for (int x = startX; x != endX; x += diffX)
-					accumulator.acceptValue(renderer.getValue(x, iy0))//
-					.acceptValue(renderer.getValue(x, iyMid))//
-					.acceptValue(renderer.getValue(x, iy1));
-				return accumulator.get();
-			} else {
-				int endY = Math.round(y1);
-				int diffY = y1 > y0 ? 1 : -1;
-				for (int y = Math.round(y0); y != endY; y += diffY) {
-					for (int x = startX; x != endX; x += diffX)
-						accumulator.acceptValue(renderer.getValue(x, y));
+			GradientPlotRenderer(QuickGradientPlot plot, QuickDrawScreen screen, Rectangle bounds) {
+				List<Number> xList = plot.getXs(), yList = plot.getYs();
+				if (xList == null || xList.isEmpty() || yList == null || yList.isEmpty()) {
+					theRenderer = null;
+					theXIndexes = theYIndexes = thePrevYValues = null;
+					hasPrevYValues = null;
+					theDXIndex = theDYIndex = 0;
+					return;
 				}
-				return accumulator.get();
-			}
-		}
 
-		protected void drawPixel(int x, int y, float value, QuickGradientPlot.Renderer renderer) {
-			Color color = renderer.getColor(value);
-			if (color == null)
-				color = Colors.transparent;
-			theImage.setRGB(x, y, color.getRGB());
+				// Convert to arrays and sort
+				float[] xs = new float[xList.size()];
+				float[] ys = new float[yList.size()];
+				int i = 0;
+				for (Number x : xList)
+					xs[i++] = x.floatValue();
+				Arrays.sort(xs);
+				i = 0;
+				for (Number y : yList)
+					ys[i++] = y.floatValue();
+				Arrays.sort(ys);
+
+				// For each X and Y pixel, find its position within the available X and Y values
+				theXIndexes = getIndexes(xs, bounds.x, bounds.width, screen::inverseTransformX);
+				theYIndexes = getIndexes(ys, bounds.y, bounds.height, screen::inverseTransformY);
+				theDXIndex = theXIndexes[theXIndexes.length - 1] > theXIndexes[0] ? 1 : -1;
+				theDYIndex = theYIndexes[theYIndexes.length - 1] > theYIndexes[0] ? 1 : -1;
+
+				hasPrevYValues = new boolean[bounds.width];
+				thePrevYValues = new float[bounds.width];
+				theRenderer = plot.getRenderer();
+			}
+
+			boolean isEmpty() {
+				return theXIndexes == null;
+			}
+
+			void draw(BufferedImage image) {
+				int width = image.getWidth();
+				int height = image.getHeight();
+				thePrevYIndex = (int) theYIndexes[0] - 1;
+				for (int pixY = 0; pixY < height; pixY++) {
+					int yIndex = (int) theYIndexes[pixY + 1];
+					boolean interpolateY;// If no grid index occurs inside the Y pixel, interpolate.
+					if (theDYIndex > 0)
+						interpolateY = yIndex < theYIndexes[pixY];
+					else {
+						interpolateY = yIndex > theYIndexes[pixY];
+					}
+					int nextYIndex = yIndex + theDYIndex;
+					thePrevXIndex = (int) theXIndexes[0] - 1;
+					for (int pixX = 0; pixX < width; pixX++) {
+						float pixelValue = getPixelValue(pixY, yIndex, nextYIndex, interpolateY, pixX);
+						Color color = theRenderer.getColor(pixelValue);
+						if (color == null)
+							color = Colors.transparent;
+						image.setRGB(pixX, pixY, color.getRGB());
+					}
+					thePrevYIndex = yIndex;
+				}
+			}
+
+			private float getPixelValue(int pixY, int yIndex, int nextYIndex, boolean interpolateY, int pixX) {
+				boolean hasPrevYPrevX = hasNextYPrevX;
+				float prevYPrevX = theNextYPrevX;
+				int xIndex = (int) theXIndexes[pixX + 1];
+				boolean interpolateX;
+				if (theDXIndex > 0)
+					interpolateX = xIndex < theXIndexes[pixX];
+				else {
+					interpolateX = xIndex > theXIndexes[pixX];
+				}
+				int nextXIndex = xIndex + theDXIndex;
+				try {
+					if (interpolateY) {
+						float y0, y1;
+						if (interpolateX) { // Use bi-linear interpolation
+							float x0y0;
+							if (hasPrevYValues[pixX])
+								x0y0 = thePrevYValues[pixX];
+							else
+								x0y0 = getValue(xIndex, xIndex, yIndex, yIndex);
+							float x1y0;
+							if (pixX + 1 < hasPrevYValues.length && hasPrevYValues[pixX + 1])
+								x1y0 = thePrevYValues[pixX + 1];
+							else
+								x1y0 = getValue(nextXIndex, nextXIndex, yIndex, yIndex);
+							float x0y1, x1y1;
+							if (pixX > 0 && xIndex == (int) theXIndexes[pixX - 1]) {
+								// Interpolating between the same values as last time
+								x0y1 = theNextYPrevX;
+								x1y1 = theNextYNextX;
+							} else {
+								if (hasNextYNextX)
+									x0y1 = theNextYNextX;
+								else
+									x0y1 = getValue(xIndex, xIndex, nextYIndex, nextYIndex);
+								x1y1 = getValue(nextXIndex, nextXIndex, nextYIndex, nextYIndex);
+							}
+							float avgXIndex = (theXIndexes[pixX] + theXIndexes[pixX + 1]) / 2;
+							float px = avgXIndex - xIndex;
+							y0 = x0y0 + px * (x1y0 - x0y0);
+							y1 = x0y1 * px * (x1y1 - x0y1);
+							hasNextYPrevX = hasNextYNextX = true;
+							theNextYPrevX = x0y1;
+							theNextYNextX = x1y1;
+						} else {
+							int minX = thePrevXIndex + 1, maxX = xIndex;
+							if (minX == maxX) {
+								if (hasPrevYValues[pixX])
+									y0 = thePrevYValues[pixX];
+								else
+									y0 = getValue(minX, minX, yIndex, yIndex);
+								if (hasNextYNextX)
+									y1 = theNextYNextX;
+								else {
+									y1 = getValue(minX, minX, nextYIndex, nextYIndex);
+									hasNextYPrevX = true;
+									theNextYPrevX = y1;
+								}
+								hasNextYNextX = false;
+							} else { // All-new set of X values that we know won't be used again
+								y0 = getValue(minX, maxX, yIndex, yIndex);
+								y1 = getValue(minX, maxX, nextYIndex, nextYIndex);
+								hasNextYPrevX = hasNextYNextX = false;
+							}
+						}
+						float avgYIndex = (theYIndexes[pixY] + theYIndexes[pixY + 1]) / 2;
+						float py = avgYIndex - yIndex;
+						return y0 + py * (y1 - y0);
+					} else {
+						int minY = thePrevYIndex + 1, maxY = yIndex;
+						if (interpolateX) {
+							float x0, x1;
+							if (minY == maxY) {
+								if (hasNextYPrevX)
+									x0 = theNextYPrevX;
+								else
+									x0 = getValue(xIndex, xIndex, minY, minY);
+								if (hasNextYNextX)
+									x1 = theNextYNextX;
+								else
+									x1 = getValue(nextXIndex, nextXIndex, minY, minY);
+							} else {
+								x0 = getValue(xIndex, xIndex, minY, maxY);
+								x1 = getValue(nextXIndex, nextXIndex, minY, maxY);
+							}
+							float avgXIndex = (theXIndexes[pixX] + theXIndexes[pixX + 1]) / 2;
+							float px = avgXIndex - xIndex;
+							return x0 + px * (x1 - x0);
+						} else {
+							int minX = thePrevXIndex + 1, maxX = xIndex;
+							float pixelValue = getValue(minX, maxX, minY, maxY);
+							if (minX == maxX) {
+								hasNextYPrevX = true;
+								theNextYPrevX = pixelValue;
+							} else
+								hasNextYPrevX = false;
+							return pixelValue;
+						}
+					}
+				} finally {
+					// Store the prev Y value for the next row
+					hasPrevYValues[pixX] = hasPrevYPrevX;
+					if (hasPrevYPrevX)
+						thePrevYValues[pixX] = prevYPrevX;
+					thePrevXIndex = xIndex;
+				}
+			}
+
+			private float getValue(int minX, int maxX, int minY, int maxY) {
+				int temp;
+				if (theDXIndex < 0) {
+					temp = minX;
+					minX = maxX;
+					maxX = temp;
+				}
+				if (theDYIndex < 0) {
+					temp = minY;
+					minY = maxY;
+					maxY = temp;
+				}
+				return theRenderer.getValue(minX, maxX, minY, maxY);
+			}
+
+			private static float[] getIndexes(float[] values, int pix0, int pixLength, FloatUnaryOperator transform) {
+				float[] indexes = new float[pixLength + 1];
+				float value0 = transform.applyAsFloat(pix0);
+				float value1 = transform.applyAsFloat(pix0 + pixLength);
+				boolean reverse = value0 > value1;
+				float startValue = reverse ? value1 : value0;
+				int startIndex = Arrays.binarySearch(values, startValue);
+				float prevValue;
+				int prevIndex, nextIndex;
+				if (startIndex >= 0) {
+					prevIndex = startIndex;
+					nextIndex = startIndex + 1;
+					prevValue = values[startIndex];
+				} else {
+					startIndex = -startIndex - 1;
+					if (startIndex == 0) {
+						prevValue = 0; // This doesn't matter. Will be skipped in the loop below.
+						prevIndex = -1;
+						nextIndex = 0;
+					} else if (startIndex == values.length) {
+						Arrays.fill(indexes, values.length);
+						return indexes;
+					} else {
+						prevIndex = startIndex - 1;
+						nextIndex = startIndex;
+						prevValue = values[prevIndex];
+					}
+				}
+				if (reverse) {
+					for (int pix = pixLength; pix >= 0; pix--) {
+						float value = transform.applyAsFloat(pix0 + pix);
+						float nextValue = values[nextIndex];
+						while (value > nextValue) {
+							prevIndex = nextIndex;
+							nextIndex++;
+							prevValue = nextValue;
+							if (nextIndex == values.length) {
+								Arrays.fill(indexes, 0, pix + 1, values.length);
+								return indexes;
+							}
+							nextValue = values[nextIndex];
+						}
+						indexes[pix] = prevIndex + (value - prevValue) / (nextValue - prevValue);
+					}
+				} else {
+					for (int pix = 0; pix <= pixLength; pix++) {
+						float value = transform.applyAsFloat(pix0 + pix);
+						float nextValue = values[nextIndex];
+						while (value > nextValue) {
+							prevIndex = nextIndex;
+							nextIndex++;
+							prevValue = nextValue;
+							if (nextIndex == values.length) {
+								Arrays.fill(indexes, pix, pixLength + 1, values.length);
+								return indexes;
+							}
+							nextValue = values[nextIndex];
+						}
+						indexes[pix] = prevIndex + (value - prevValue) / (nextValue - prevValue);
+					}
+				}
+				return indexes;
+			}
+
+			@Override
+			public void close() {
+				if (theRenderer != null)
+					theRenderer.close();
+			}
 		}
 	}
 
@@ -4179,7 +4210,8 @@ public class QuickDrawSwing implements QuickInterpretation {
 		public QuickSwingCustomDraw(QuickCustomDraw shape) {
 			super(shape);
 			theDrawer = (ObservableValue<? extends QuickCustomDrawer>) shape.getDrawer();
-			theUpdate = Observable.or(super.update(), theDrawer.noInitChanges());
+			theUpdate = Observable.or(super.update(), theDrawer.noInitChanges(),
+				ObservableValue.flattenObservableValue(theDrawer.map(d -> d == null ? null : d.getUpdate())));
 		}
 
 		@Override
@@ -4189,7 +4221,7 @@ public class QuickDrawSwing implements QuickInterpretation {
 
 		@Override
 		protected void doDraw(QuickDrawScreen screen, Rectangle bounds) {
-			if (!isVisible())
+			if (!isVisible() || bounds.width <= 0 || bounds.height <= 0)
 				return;
 			Color color = getColor();
 			Float opacity = getOpacity();
