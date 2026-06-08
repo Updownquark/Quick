@@ -235,6 +235,8 @@ public class QuickBaseSwing implements QuickInterpretation {
 			(Class<QuickWidget.Interpreted<QuickWidget>>) (Class<?>) QuickWidget.Interpreted.class, (ao, qsp, tx2) -> {
 				QuickSwingPopulator<QuickWidget> post = ao.getPost() == null ? null
 					: tx2.transform(ao.getPost().getContent(), QuickSwingPopulator.class);
+				boolean fill = ao.getDefinition().isFill();
+				boolean vFill = ao.getDefinition().isVFill();
 				qsp.addModifier((comp, w) -> {
 					QuickField aoi = w.getAddOn(QuickField.class);
 					if (aoi.getFieldLabel() != null)
@@ -248,9 +250,9 @@ public class QuickBaseSwing implements QuickInterpretation {
 							}
 						});
 					}
-					if (ao.getDefinition().isFill())
+					if (fill)
 						comp.fill();
-					if (ao.getDefinition().isVFill())
+					if (vFill)
 						comp.fillV();
 				});
 			});
@@ -2327,7 +2329,7 @@ public class QuickBaseSwing implements QuickInterpretation {
 				swingChooser.setFileSelectionMode(mode);
 				swingChooser.setMultiSelectionEnabled(dialog.isMultiSelectable());
 				window.isVisible().value().takeUntil(until)// .safe(ThreadConstraint.EDT)
-					.filter(FunctionUtils.identity()).act(__ -> {
+				.filter(FunctionUtils.identity()).act(__ -> {
 					display(swingChooser, parent, dialog, window);
 				});
 			}

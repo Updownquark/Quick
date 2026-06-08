@@ -3887,7 +3887,6 @@ public class QuickDrawSwing implements QuickInterpretation {
 
 	static class QuickDrawGradientPlot extends QuickDrawRectangle<QuickGradientPlot> {
 		private final Observable<?> theUpdate;
-		private BufferedImage theImage;
 
 		public QuickDrawGradientPlot(QuickGradientPlot rectangle, List<QuickDrawShapePublisher> contents) {
 			super(rectangle, contents);
@@ -3900,16 +3899,16 @@ public class QuickDrawSwing implements QuickInterpretation {
 			if (!isVisible() || bounds.width <= 0 || bounds.height <= 0)
 				return;
 
+			BufferedImage image;
 			try (GradientPlotRenderer renderer = new GradientPlotRenderer(getShape(), screen, bounds)) {
 				if (renderer.isEmpty())
 					return;
 
-				if (theImage == null || theImage.getWidth() != bounds.width || theImage.getHeight() != bounds.height)
-					theImage = new BufferedImage(bounds.width, bounds.height, BufferedImage.TYPE_4BYTE_ABGR);
+				image = new BufferedImage(bounds.width, bounds.height, BufferedImage.TYPE_4BYTE_ABGR);
 
-				renderer.draw(theImage);
+				renderer.draw(image);
 			}
-			screen.gfx().drawImage(theImage, bounds.x, bounds.y, null);
+			screen.gfx().drawImage(image, bounds.x, bounds.y, null);
 		}
 
 		interface FloatUnaryOperator {

@@ -93,8 +93,7 @@ public class StyleApplicationDef implements Comparable<StyleApplicationDef> {
 	 * The {@link ObservableModelSet#getTagValue(ModelTag) model tag} that the styled {@link QonfigElement} will be stored in to enable
 	 * hierarchical style values
 	 */
-	public static final ModelTag<QonfigElement> STYLED_ELEMENT_TAG = ModelTag.of(QonfigElement.class.getSimpleName(),
-		TypeTokens.get().of(QonfigElement.class));
+	public static final ModelTag<Object> STYLED_ELEMENT_TAG = ModelTag.of(Object.class.getSimpleName(), TypeTokens.get().OBJECT);
 	private static final Map<ElementModelValue.Identity, Integer> MODEL_VALUE_PRIORITY = new WeakHashMap<>();
 
 	/**

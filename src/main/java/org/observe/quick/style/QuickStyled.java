@@ -85,7 +85,7 @@ public class QuickStyled extends ExAddOn.Abstract<ExElement> {
 				builder = ObservableModelSet
 				.build(element.getElement().getType().getName() + ".local", ObservableModelSet.JAVA_NAME_CHECKER)
 				.withAll(defaultEnv.getModels());
-			builder.withTagValue(StyleApplicationDef.STYLED_ELEMENT_TAG, element.getElement());
+			builder.withTagValue(StyleApplicationDef.STYLED_ELEMENT_TAG, element.getIdentity());
 			if (builder != defaultEnv.getModels()) {
 				defaultEnv = defaultEnv.with(builder.build());
 				element.setExpressoEnv(doc, defaultEnv);
