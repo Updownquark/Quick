@@ -89,6 +89,10 @@ public interface QuickWidget extends QuickTextElement, QuickWithBackground {
 		@QonfigChildGetter("dialog")
 		List<QuickDialog.Def<?>> getDialogs();
 
+		/** @return All methods by which this widget's rendering may be used by the application */
+		@QonfigChildGetter("export")
+		List<QuickWidgetExport.Def<?>> getWidgetExports();
+
 		/**
 		 * @param parent The parent container interpretation
 		 * @return The new widget interpretation
@@ -114,6 +118,7 @@ public interface QuickWidget extends QuickTextElement, QuickWithBackground {
 			private QuickBorder.Def<?> theBorder;
 			private final List<QuickEventListener.Def<?>> theEventListeners;
 			private final List<QuickDialog.Def<?>> theDialogs;
+			private final List<QuickWidgetExport.Def<?>> theWidgetExports;
 
 			/**
 			 * @param parent The parent container definition
@@ -123,6 +128,7 @@ public interface QuickWidget extends QuickTextElement, QuickWithBackground {
 				super(parent, type);
 				theEventListeners = new ArrayList<>();
 				theDialogs = new ArrayList<>();
+				theWidgetExports = new ArrayList<>();
 			}
 
 			@Override
@@ -192,6 +198,11 @@ public interface QuickWidget extends QuickTextElement, QuickWithBackground {
 			}
 
 			@Override
+			public List<QuickWidgetExport.Def<?>> getWidgetExports() {
+				return Collections.unmodifiableList(theWidgetExports);
+			}
+
+			@Override
 			protected void doUpdate(ExpressoQIS session) throws QonfigInterpretationException {
 				super.doUpdate(session.asElement("styled"));
 				theName = getAttributeExpression("name", session);
@@ -207,6 +218,7 @@ public interface QuickWidget extends QuickTextElement, QuickWithBackground {
 				theBorder = syncChild(QuickBorder.Def.class, theBorder, session, "border");
 				syncChildren(QuickEventListener.Def.class, theEventListeners, session.forChildren("event-listener"));
 				syncChildren(QuickDialog.Def.class, theDialogs, session.forChildren("dialog"));
+				syncChildren(QuickWidgetExport.Def.class, theWidgetExports, session.forChildren("export"));
 			}
 
 			@Override
@@ -252,6 +264,9 @@ public interface QuickWidget extends QuickTextElement, QuickWithBackground {
 		/** @return All dialogs configured to display for this widget */
 		List<QuickDialog.Interpreted<?>> getDialogs();
 
+		/** @return All methods by which this widget's rendering may be used by the application */
+		List<QuickWidgetExport.Interpreted<?>> getWidgetExports();
+
 		/**
 		 * Produces a widget instance
 		 *
@@ -272,6 +287,7 @@ public interface QuickWidget extends QuickTextElement, QuickWithBackground {
 			private InterpretedValueSynth<Observable<?>, Observable<?>> theRepaint;
 			private final List<QuickEventListener.Interpreted<?>> theEventListeners;
 			private final List<QuickDialog.Interpreted<?>> theDialogs;
+			private final List<QuickWidgetExport.Interpreted<?>> theWidgetExports;
 
 			/**
 			 * @param definition The definition producing this interpretation
@@ -281,6 +297,7 @@ public interface QuickWidget extends QuickTextElement, QuickWithBackground {
 				super(definition, parent);
 				theEventListeners = new ArrayList<>();
 				theDialogs = new ArrayList<>();
+				theWidgetExports = new ArrayList<>();
 			}
 
 			@Override
@@ -335,6 +352,11 @@ public interface QuickWidget extends QuickTextElement, QuickWithBackground {
 			}
 
 			@Override
+			public List<QuickWidgetExport.Interpreted<?>> getWidgetExports() {
+				return Collections.unmodifiableList(theWidgetExports);
+			}
+
+			@Override
 			protected void doUpdate() throws ExpressoInterpretationException {
 				super.doUpdate();
 				theName = interpret(getDefinition().getName(), ModelTypes.Value.STRING);
@@ -347,6 +369,8 @@ public interface QuickWidget extends QuickTextElement, QuickWithBackground {
 				syncChildren(getDefinition().getEventListeners(), theEventListeners, def -> def.interpret(this),
 					QuickEventListener.Interpreted::updateListener);
 				syncChildren(getDefinition().getDialogs(), theDialogs, def -> def.interpret(this), QuickDialog.Interpreted::updateDialog);
+				syncChildren(getDefinition().getWidgetExports(), theWidgetExports, def -> def.interpret(this),
+					QuickWidgetExport.Interpreted::updateExport);
 			}
 
 			@Override
@@ -393,6 +417,9 @@ public interface QuickWidget extends QuickTextElement, QuickWithBackground {
 	/** @return All dialogs this widget may display */
 	ObservableCollection<QuickDialog> getDialogs();
 
+	/** @return All methods by which this widget's rendering may be used by the application */
+	ObservableCollection<QuickWidgetExport> getWidgetExports();
+
 	@Override
 	QuickWidget copy(ExElement parent);
 
@@ -420,6 +447,7 @@ public interface QuickWidget extends QuickTextElement, QuickWithBackground {
 		private QuickBorder theBorder;
 		private ObservableCollection<QuickEventListener> theEventListeners;
 		private ObservableCollection<QuickDialog> theDialogs;
+		private ObservableCollection<QuickWidgetExport> theWidgetExports;
 
 		/** @param id The element identifier for this widget */
 		protected Abstract(Object id) {
@@ -430,6 +458,7 @@ public interface QuickWidget extends QuickTextElement, QuickWithBackground {
 			theRepaint = SettableValue.create();
 			theEventListeners = ObservableCollection.create();
 			theDialogs = ObservableCollection.create();
+			theWidgetExports = ObservableCollection.create();
 
 			isHovered = SettableValue.create();
 			isFocused = SettableValue.create();
@@ -509,6 +538,11 @@ public interface QuickWidget extends QuickTextElement, QuickWithBackground {
 		}
 
 		@Override
+		public ObservableCollection<QuickWidgetExport> getWidgetExports() {
+			return theWidgetExports.flow().unmodifiable(false).collect();
+		}
+
+		@Override
 		public void setContext(BackgroundContext ctx) {
 			isHovered.set(ctx.isHovered(), null);
 			isFocused.set(ctx.isFocused(), null);
@@ -558,6 +592,18 @@ public interface QuickWidget extends QuickTextElement, QuickWithBackground {
 				.onCommonX(el -> el.getLeftValue().update(el.getRightValue(), this))//
 				.adjust();
 			}
+
+			try (Transaction t = theWidgetExports.lockWrite(false, null)) {
+				CollectionUtils
+					.synchronize(theWidgetExports, myInterpreted.getWidgetExports(), (l, i) -> l.getIdentity() == i.getIdentity())//
+					.simpleX(l -> {
+						QuickWidgetExport export = l.create();
+						export.update(l, this);
+						return export;
+					})//
+					.onCommonX(el -> el.getLeftValue().update(el.getRightValue(), this))//
+					.adjust();
+			}
 		}
 
 		@Override
@@ -577,6 +623,8 @@ public interface QuickWidget extends QuickTextElement, QuickWithBackground {
 				listener.instantiated();
 			for (QuickDialog dialog : theDialogs)
 				dialog.instantiated();
+			for (QuickWidgetExport export : theWidgetExports)
+				export.instantiated();
 		}
 
 		@Override
@@ -601,6 +649,10 @@ public interface QuickWidget extends QuickTextElement, QuickWithBackground {
 
 			for (QuickDialog dialog : theDialogs)
 				dialog.instantiate(myModels);
+
+			for (QuickWidgetExport export : theWidgetExports)
+				export.instantiate(myModels);
+
 			return myModels;
 		}
 
@@ -614,6 +666,7 @@ public interface QuickWidget extends QuickTextElement, QuickWithBackground {
 			copy.theRepaint = SettableValue.create();
 			copy.theEventListeners = ObservableCollection.create();
 			copy.theDialogs = ObservableCollection.create();
+			copy.theWidgetExports = ObservableCollection.create();
 
 			copy.isHovered = SettableValue.create();
 			copy.isFocused = SettableValue.create();
@@ -626,6 +679,8 @@ public interface QuickWidget extends QuickTextElement, QuickWithBackground {
 				copy.theEventListeners.add(listener.copy(copy));
 			for (QuickDialog dialog : theDialogs)
 				copy.theDialogs.add(dialog.copy(copy));
+			for (QuickWidgetExport export : theWidgetExports)
+				copy.theWidgetExports.add(export.copy(copy));
 
 			return copy;
 		}

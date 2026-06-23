@@ -194,6 +194,8 @@
 			<?DOC The widget used to render each value for this rendering widget?>
 			<child-def name="renderer" type="widget" inherits="renderer" min="0" max="inf" />
 		</add-on>
+
+		<add-on name="widget-export" abstract="true" />
 	</add-ons>
 
 	<elements>
@@ -221,6 +223,8 @@
 			<child-def name="event-listener" type="event-listener" min="0" max="inf" />
 			<?DOC Dialogs that the widget may display to the user?>
 			<child-def name="dialog" type="dialog" min="0" max="inf" />
+			<?DOC Allows this widget's rendering to be exported to a file or used in other ways?>
+			<child-def name="export" type="widget-export" min="0" max="inf" />
 		</element-def>
 
 		<?DOC Performs an action when some kind of event occurs on a &lt;widget>?>
@@ -345,6 +349,11 @@
 		<?DOC A separate window that pops up over the main window containing custom &lt;widget> content?>
 		<element-def name="content-dialog" extends="dialog" abstract="true">
 			<child-def name="content" type="widget" />
+		</element-def>
+
+		<?DOC Exports a widget's rendering to a file?>
+		<element-def name="widget-file-export" inherits="widget-export">
+			<attribute name="file" type="expression" />
 		</element-def>
 
 		<!-- Now a basic outline of abstract Quick widgets -->

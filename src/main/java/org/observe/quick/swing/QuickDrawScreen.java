@@ -15,6 +15,14 @@ public interface QuickDrawScreen extends Transaction {
 
 	Point transformToRoot(float x, float y);
 
+	float getMinX();
+
+	float getMinY();
+
+	float getMaxX();
+
+	float getMaxY();
+
 	float getWidth();
 
 	float getHeight();
@@ -162,6 +170,26 @@ public interface QuickDrawScreen extends Transaction {
 		}
 
 		@Override
+		public float getMinX() {
+			return 0;
+		}
+
+		@Override
+		public float getMinY() {
+			return 0;
+		}
+
+		@Override
+		public float getMaxX() {
+			return getWidth();
+		}
+
+		@Override
+		public float getMaxY() {
+			return getHeight();
+		}
+
+		@Override
 		public int containsX(float x) {
 			if (x < 0)
 				return -1;
@@ -259,6 +287,26 @@ public interface QuickDrawScreen extends Transaction {
 		@Override
 		public Point transformToRoot(float x, float y) {
 			return super.transformToRoot(x + theOffsetX, y + theOffsetY);
+		}
+
+		@Override
+		public float getMinX() {
+			return -theOffsetX;
+		}
+
+		@Override
+		public float getMinY() {
+			return -theOffsetY;
+		}
+
+		@Override
+		public float getMaxX() {
+			return getWidth() - theOffsetX;
+		}
+
+		@Override
+		public float getMaxY() {
+			return getHeight() - theOffsetY;
 		}
 
 		@Override
@@ -375,6 +423,42 @@ public interface QuickDrawScreen extends Transaction {
 		@Override
 		public Point transformToRoot(float x, float y) {
 			return super.transformToRoot(x * theScaleX + theOffsetX, y * theScaleY + theOffsetY);
+		}
+
+		@Override
+		public float getMinX() {
+			float scaledOffset = -theOffsetX / theScaleX;
+			if (theScaleX < 0)
+				return -getWidth() + scaledOffset;
+			else
+				return scaledOffset;
+		}
+
+		@Override
+		public float getMinY() {
+			float scaledOffset = -theOffsetY / theScaleY;
+			if (theScaleY < 0)
+				return -getHeight() + scaledOffset;
+			else
+				return scaledOffset;
+		}
+
+		@Override
+		public float getMaxX() {
+			float scaledOffset = -theOffsetX / theScaleX;
+			if (theScaleX > 0)
+				return getWidth() + scaledOffset;
+			else
+				return scaledOffset;
+		}
+
+		@Override
+		public float getMaxY() {
+			float scaledOffset = -theOffsetY / theScaleY;
+			if (theScaleY > 0)
+				return getHeight() + scaledOffset;
+			else
+				return scaledOffset;
 		}
 
 		@Override

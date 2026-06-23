@@ -26,6 +26,9 @@ import java.awt.event.MouseListener;
 import java.awt.event.MouseWheelEvent;
 import java.awt.font.FontRenderContext;
 import java.awt.font.TextAttribute;
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -39,6 +42,7 @@ import java.util.function.IntSupplier;
 import java.util.function.Supplier;
 import java.util.function.ToIntFunction;
 
+import javax.imageio.ImageIO;
 import javax.swing.ImageIcon;
 import javax.swing.JComponent;
 import javax.swing.JFrame;
@@ -71,7 +75,9 @@ import org.observe.quick.QuickRenderer;
 import org.observe.quick.QuickSizeListener;
 import org.observe.quick.QuickTextElement.QuickTextStyle;
 import org.observe.quick.QuickWidget;
+import org.observe.quick.QuickWidgetExport;
 import org.observe.quick.QuickWindow;
+import org.observe.quick.WidgetFileExport;
 import org.observe.quick.swing.QuickSwingPopulator.QuickSwingBorder;
 import org.observe.quick.swing.QuickSwingPopulator.QuickSwingDialog;
 import org.observe.quick.swing.QuickSwingPopulator.QuickSwingEventListener;
@@ -90,6 +96,7 @@ import org.qommons.Transformer;
 import org.qommons.collect.BetterList;
 import org.qommons.collect.MutableCollectionElement.StdMsg;
 import org.qommons.ex.CheckedExceptionWrapper;
+import org.qommons.io.ErrorReporting;
 
 /** Quick interpretation of the core toolkit for Swing */
 public class QuickCoreSwing implements QuickInterpretation {
@@ -140,6 +147,17 @@ public class QuickCoreSwing implements QuickInterpretation {
 				dialogs = new HashMap<>();
 				for (QuickDialog.Interpreted<?> dialog : ((QuickWidget.Interpreted<?>) qw).getDialogs())
 					dialogs.put(dialog.getIdentity(), tx2.transform(dialog, QuickSwingDialog.class));
+			}
+			Map<Object, SwingWidgetExport<QuickWidgetExport>> exports;
+			if (qw.getWidgetExports().isEmpty())
+				exports = Collections.emptyMap();
+			else if (renderer) {
+				qw.reporting().error("Exports are not supported for renderers in this implementation");
+				exports = Collections.emptyMap();
+			} else {
+				exports = new HashMap<>();
+				for (QuickWidgetExport.Interpreted<?> export : ((QuickWidget.Interpreted<?>) qw).getWidgetExports())
+					exports.put(export.getIdentity(), tx2.transform(export, SwingWidgetExport.class));
 			}
 			Object id = qw.getIdentity();
 			qsp.addModifier((comp, w) -> {
@@ -226,6 +244,12 @@ public class QuickCoreSwing implements QuickInterpretation {
 									for (QuickDialog dialog : w.getDialogs()) {
 										QuickSwingDialog<QuickDialog> swingDialog = dialogs.get(dialog.getIdentity());
 										swingDialog.initialize(dialog, c, Observable.or(dialog.onDestroy(), comp.getUntil()));
+									}
+								}
+								if (!exports.isEmpty()) {
+									for (QuickWidgetExport export : w.getWidgetExports()) {
+										SwingWidgetExport<QuickWidgetExport> interpExport = exports.get(export.getIdentity());
+										interpExport.initialize(export, c, Observable.or(export.onDestroy(), comp.getUntil()));
 									}
 								}
 							} catch (ModelInstantiationException e) {
@@ -642,6 +666,7 @@ public class QuickCoreSwing implements QuickInterpretation {
 				});
 			};
 		});
+		tx.with(WidgetFileExport.Interpreted.class, SwingWidgetExport.class, SwingWidgetFileExport::new);
 	}
 
 	static class QuickWindowModifier implements QuickSwingPopulator.WindowModifier<QuickWindow> {
@@ -1570,6 +1595,50 @@ public class QuickCoreSwing implements QuickInterpretation {
 			bounds.y += component.getY();
 			component = parent;
 			parent = parent.getParent();
+		}
+	}
+
+	static class SwingWidgetFileExport implements SwingWidgetExport<WidgetFileExport> {
+		SwingWidgetFileExport(WidgetFileExport.Interpreted<?> interpreted, Transformer<ExpressoInterpretationException> tx)
+			throws ExpressoInterpretationException {
+		}
+
+		@Override
+		public void initialize(WidgetFileExport export, Component c, Observable<?> until) {
+			ErrorReporting reporting = export.reporting();
+			export.getFile().noInitChanges().takeUntil(until).act(evt -> {
+				File file = evt.getNewValue();
+				if (file == null)
+					return;
+				int lastDot = file.getName().lastIndexOf('.');
+				if (lastDot < 0) {
+					reporting.error("Cannot determine image type for file " + file.getName());
+					return;
+				}
+				String fileType = file.getName().substring(lastDot + 1);
+				int imageType;
+				switch (fileType.toLowerCase()) {
+				case "png":
+				case "gif":
+					imageType = BufferedImage.TYPE_INT_ARGB;
+					break;
+				default:
+					imageType = BufferedImage.TYPE_INT_RGB;
+					break;
+				}
+
+				BufferedImage image = new BufferedImage(c.getWidth(), c.getHeight(), imageType);
+				Graphics2D gfx = image.createGraphics();
+				c.printAll(gfx);
+				gfx.dispose();
+
+				try {
+					ImageIO.write(image, fileType, file);
+					reporting.info("Exported widget render to " + file.getPath());
+				} catch (IOException e) {
+					reporting.error("Failed to export widget render to " + file.getPath(), e);
+				}
+			});
 		}
 	}
 }

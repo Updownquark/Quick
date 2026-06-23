@@ -234,6 +234,9 @@ public class QuickCoreInterpretation implements QonfigInterpretation {
 
 		interpreter.createWith("renderer", QuickRenderer.Def.class,
 			session -> interpretAddOn(session, (p, ao) -> new QuickRenderer.Def(ao, (QuickWidget.Def<?>) p)));
+
+		interpreter.createWith(WidgetFileExport.WIDGET_FILE_EXPORT, WidgetFileExport.Def.class,
+			ExElement.creator(WidgetFileExport.Def::new));
 		return interpreter;
 	}
 

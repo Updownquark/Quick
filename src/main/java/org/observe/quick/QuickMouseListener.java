@@ -179,7 +179,14 @@ public abstract class QuickMouseListener extends QuickEventListener.Abstract {
 		}
 	}
 
+	/**
+	 * Allows customization of the type of coordinates for a mouse listener
+	 *
+	 * @param <E> The type of mouse listener this coord type add-on is for
+	 * @param <AO> The sub-type of this add-on
+	 */
 	public interface MouseCoordType<E extends QuickMouseListener, AO extends ExAddOn<? super E>> extends ExAddOn.Def<E, AO> {
+		/** @return The type of values for mouse coordinates in a listener */
 		TypeToken<? extends Number> getCoordinateType();
 	}
 

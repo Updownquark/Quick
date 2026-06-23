@@ -2587,9 +2587,11 @@ public class QuickDrawSwing implements QuickInterpretation {
 
 		QuickDrawLine(QuickLine shape) {
 			super(shape);
-			theUpdate = Observable.onRootFinish(Observable.or(shape.getStyle().changes(), //
-				Observable.or(shape.getPoints().stream().flatMap(pt -> Stream.of(pt.getX().noInitChanges(), pt.getY().noInitChanges()))
-					.collect(Collectors.toList()))));
+			theUpdate = Observable.onRootFinish(Observable.or(getShape().isVisible().noInitChanges(), //
+				Observable.or(shape.getStyle().changes(), //
+					Observable.or(shape.getPoints().stream().flatMap(pt -> Stream.of(pt.getX().noInitChanges(), pt.getY().noInitChanges()))
+						.collect(Collectors.toList())))
+					.filterP(__ -> isVisible())));
 		}
 
 		@Override
@@ -3851,17 +3853,17 @@ public class QuickDrawSwing implements QuickInterpretation {
 
 			int[][] points = new int[2][2];
 			if (verticalAxis) {
-				points[0][0] = (int) screen.transformX(0);
-				points[0][1] = (int) screen.transformX(screen.getWidth());
+				points[0][0] = (int) screen.transformX(screen.getMinX());
+				points[0][1] = (int) screen.transformX(screen.getMaxX());
 			} else {
-				points[1][0] = (int) screen.transformY(0);
-				points[1][1] = (int) screen.transformY(screen.getHeight());
+				points[1][0] = (int) screen.transformY(screen.getMinY());
+				points[1][1] = (int) screen.transformY(screen.getMaxY());
 			}
 			axis.forEachTick((i, tick, p) -> {
 				if (verticalAxis)
-					points[1][0] = points[1][1] = (int) screen.transformY(p * screen.getHeight());
+					points[1][0] = points[1][1] = (int) screen.transformY((float) tick);
 				else
-					points[0][0] = points[0][1] = (int) screen.transformX(p * screen.getWidth());
+					points[0][0] = points[0][1] = (int) screen.transformX((float) tick);
 
 				if (tickValueAs != null)
 					tickValueAs.set(tick);
