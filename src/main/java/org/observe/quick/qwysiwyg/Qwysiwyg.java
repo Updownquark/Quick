@@ -107,7 +107,6 @@ import org.qommons.io.MinML.XmlDeclaration;
 import org.qommons.io.MinML.XmlElementContent;
 import org.qommons.io.MinML.XmlElementOpen;
 import org.qommons.io.MinML.XmlElementTerminal;
-import org.qommons.io.MinML.XmlParseException;
 import org.qommons.io.MinML.XmlProcessingInstruction;
 import org.qommons.io.PositionedContent;
 import org.qommons.io.TextParseException;
@@ -759,10 +758,17 @@ public class Qwysiwyg {
 			renderDef(document.get().getRoot(), theDocumentDef, null);
 
 			ExpressoHeadSection.Def head = theDocumentDef.getAddOn(ExpressoDocument.Def.class).getHead();
-			ObservableModelSet.ExternalModelSet extModels = QuickApp.parseExtModels(
-				head.getExpressoEnv(head.getDocument()).getBuiltModels(),
-				quickApp.getCommandLineArgs(), ObservableModelSet.buildExternal(ObservableModelSet.JAVA_NAME_CHECKER),
-				InterpretedExpressoEnv.INTERPRETED_STANDARD_JAVA);
+			ObservableModelSet.ExternalModelSet extModels;
+			try {
+				extModels = QuickApp.parseExtModels(
+					head.getExpressoEnv(head.getDocument()).getBuiltModels(),
+					quickApp.getCommandLineArgs(), null, false, ObservableModelSet.buildExternal(ObservableModelSet.JAVA_NAME_CHECKER),
+					InterpretedExpressoEnv.INTERPRETED_STANDARD_JAVA);
+			} catch (ExpressoInterpretationException e) {
+				logToConsole(e, quickApp.getAppFile(), e.getPosition());
+				clearInterpreted();
+				return;
+			}
 
 			try {
 				if (theDocumentInterpreted == null)
@@ -1082,7 +1088,7 @@ public class Qwysiwyg {
 						open.children.getFirst().children.getFirst().setOpposite(endComp);
 				}
 			});
-		} catch (IOException | XmlParseException e) {
+		} catch (IOException | TextParseException e) {
 			// Should have been reported elsewhere, nothing to do here
 		}
 	}

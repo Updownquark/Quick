@@ -1521,7 +1521,7 @@ class QuickSwingTablePopulation {
 				PanelPopulation.PartialPanelPopulatorImpl.super.addTextField(fieldName, field, format, modify);
 			else {
 				ObservableTextField<C>[] textField = new ObservableTextField[1];
-				ObservableCellEditor<R, C> cellEditor = ObservableCellEditor.createTextEditor((Format<C>) format, tf -> textField[0] = tf);
+				ObservableCellEditor<R2, C> cellEditor = ObservableCellEditor.createTextEditor((Format<C>) format, tf -> textField[0] = tf);
 				FieldRenderEditor<ObservableTextField<C>> fieldEditor = new FieldRenderEditor<>(cellEditor, textField[0]);
 				if (modify != null)
 					modify.accept((ComponentEditor<ObservableTextField<F>, ?>) (ComponentEditor<?, ?>) fieldEditor);

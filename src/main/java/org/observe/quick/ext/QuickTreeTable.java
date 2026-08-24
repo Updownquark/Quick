@@ -220,7 +220,7 @@ public class QuickTreeTable<N, C> extends QuickTree<N> implements TabularWidget<
 		@Override
 		public void destroy() {
 			super.destroy();
-			for (QuickTableColumn.TableColumnSet.Interpreted<BetterList<N>, ?> columnSet : theColumns.reverse())
+			for (QuickTableColumn.TableColumnSet.Interpreted<BetterList<N>, ?> columnSet : theColumns.reversed())
 				columnSet.destroy();
 			theColumns.clear();
 		}

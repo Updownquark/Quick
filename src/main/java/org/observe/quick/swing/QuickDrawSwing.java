@@ -579,7 +579,7 @@ public class QuickDrawSwing implements QuickInterpretation {
 		@Override
 		public String getTooltip() {
 			theHovered.removeIf(el -> !el.isPresent());
-			for (ElementId hovered : theHovered.reverse()) {
+			for (ElementId hovered : theHovered.reversed()) {
 				ListElement<QuickShapeInterpretation> shape = getShapes().getElement(hovered);
 				setState(shape);
 				String tooltip = shape.get().getTooltip();
@@ -1065,7 +1065,7 @@ public class QuickDrawSwing implements QuickInterpretation {
 			try (Setter<T> valueSetter = activeValue.lockWrite(false, null); //
 				Setter<Integer> indexSetter = activeIndex.lockWrite(false, null); //
 				Transaction ct = theCollection.getValues().lock(false)) {
-				for (BiTuple<ElementId, ElementId> hovered : theHovered.reverse()) {
+				for (BiTuple<ElementId, ElementId> hovered : theHovered.reversed()) {
 					ListElement<T> valueEl = theCollection.getValues().getElement(hovered.getValue1());
 					theCurrentValue = valueEl;
 					QuickShapeInterpretation shape = getContents().getElement(hovered.getValue2()).get();
@@ -2591,7 +2591,7 @@ public class QuickDrawSwing implements QuickInterpretation {
 				Observable.or(shape.getStyle().changes(), //
 					Observable.or(shape.getPoints().stream().flatMap(pt -> Stream.of(pt.getX().noInitChanges(), pt.getY().noInitChanges()))
 						.collect(Collectors.toList())))
-					.filterP(__ -> isVisible())));
+				.filterP(__ -> isVisible())));
 		}
 
 		@Override

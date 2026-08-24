@@ -49,7 +49,7 @@ import org.qommons.config.QonfigInterpretationException;
 import org.qommons.config.QonfigParseException;
 import org.qommons.config.QonfigToolkit;
 import org.qommons.io.LocatedFilePosition;
-import org.qommons.io.MinML;
+import org.qommons.io.TextParseException;
 
 /** A structure containing many style values that may apply to all &lt;styled> elements in a document */
 @ExElementTraceable(toolkit = QuickStyleInterpretation.STYLE,
@@ -124,7 +124,7 @@ public class QuickStyleSheet extends ExElement.Def.Abstract<QuickStyleSheet.Inst
 				throw new QonfigInterpretationException("Could not access style-sheet reference " + ref,
 					address.position == null ? null : new LocatedFilePosition(address.fileLocation, address.position.getPosition(0)), //
 						address.text.length(), e);
-			} catch (MinML.XmlParseException e) {
+			} catch (TextParseException e) {
 				throw new QonfigInterpretationException("Could not parse style-sheet reference " + ref,
 					address.position == null ? null : new LocatedFilePosition(address.fileLocation, address.position.getPosition(0)), //
 						address.text.length(), e);

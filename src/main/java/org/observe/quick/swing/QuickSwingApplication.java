@@ -45,7 +45,7 @@ public class QuickSwingApplication implements QuickApplication {
 	@Override
 	public void runApplication(QuickDocument doc, Observable<?> until) throws ModelInstantiationException {
 		try {
-			EventQueue.invokeAndWait(() -> {
+			Runnable show = () -> {
 				WindowBuilder<?, ?> w = WindowPopulation.populateWindow(new JFrame(), until, true, true);
 				for (Map.Entry<Class<? extends ExAddOn<?>>, QuickSwingPopulator.WindowModifier<?>> modifier : theModifiers.entrySet()) {
 					ExAddOn<?> addOn = doc.getAddOn(modifier.getKey());
@@ -67,7 +67,11 @@ public class QuickSwingApplication implements QuickApplication {
 					}
 				});
 				w.run(null);
-			});
+			};
+			if (EventQueue.isDispatchThread())
+				show.run();
+			else
+				EventQueue.invokeAndWait(show);
 		} catch (InterruptedException e) {
 			Thread.currentThread().interrupt();
 		} catch (InvocationTargetException e) {

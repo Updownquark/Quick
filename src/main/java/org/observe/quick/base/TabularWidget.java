@@ -413,7 +413,7 @@ public interface TabularWidget<R, C> extends MultiValueWidget<R> {
 			@Override
 			public void destroy() {
 				super.destroy();
-				for (QuickTableColumn.TableColumnSet.Interpreted<R, ?> columnSet : theColumns.reverse())
+				for (QuickTableColumn.TableColumnSet.Interpreted<R, ?> columnSet : theColumns.reversed())
 					columnSet.destroy();
 				theColumns.clear();
 			}

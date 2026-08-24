@@ -127,7 +127,7 @@ public interface QuickContainer<W extends QuickWidget> extends QuickWidget {
 
 			@Override
 			public void destroy() {
-				for (QuickWidget.Interpreted<? extends C> content : theContents.reverse())
+				for (QuickWidget.Interpreted<? extends C> content : theContents.reversed())
 					content.destroy();
 				theContents.clear();
 				super.destroy();

@@ -365,7 +365,8 @@ public class QuickTree<N> extends QuickWidget.Abstract implements MultiValueWidg
 
 			getNodeType(); // Initialize root
 			// Even though we already instantiated the model above, we need this call to delegate to the appropriate environment
-			theModel = syncChild(getDefinition().getModel(), theModel, def -> def.interpret(this), m -> m.updateModel());
+			theModel = syncChild(getDefinition().getModel(), theModel, def -> (TreeModel.Interpreted<N, ?>) def.interpret(this),
+				m -> m.updateModel());
 			theTreeColumn = syncChild(getDefinition().getTreeColumn(), theTreeColumn,
 				def -> (QuickTableColumn.SingleColumnSet.Interpreted<BetterList<N>, N>) def.<BetterList<N>> interpret(this),
 				c -> c.updateColumns());
