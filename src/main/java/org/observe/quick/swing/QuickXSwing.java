@@ -79,12 +79,13 @@ import org.observe.util.swing.PanelPopulation.PanelPopulator;
 import org.observe.util.swing.PanelPopulation.SliderEditor;
 import org.observe.util.swing.PanelPopulation.TableBuilder;
 import org.observe.util.swing.Shading;
-import org.observe.util.swing.TableContentControl;
+import org.observe.util.swing.SwingTableControl;
 import org.observe.util.swing.VirtualMultiPane;
 import org.qommons.BiTuple;
 import org.qommons.BreakpointHere;
 import org.qommons.Causable;
 import org.qommons.Subscription;
+import org.qommons.TableContentControl;
 import org.qommons.Transformer;
 import org.qommons.ValueHolder;
 import org.qommons.collect.BetterList;
@@ -771,7 +772,7 @@ public class QuickXSwing implements QuickInterpretation {
 					component.accept(inner);
 					if (superQuick.isSearchable()) {
 						inner.addTextField(null, theContentControl, TableContentControl.FORMAT, field -> {
-							TableContentControl.configureSearchField(field, true);
+							SwingTableControl.configureSearchField(field, true);
 							field.modifyEditor(tf -> theSearchField = tf);
 						});
 					}
